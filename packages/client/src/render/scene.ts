@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { createArena, createCrater, type ArenaView } from "./arena";
 import { createLava } from "./lava";
 import { createFx } from "./fx";
+import type { FighterModel } from "./fighters";
 import { createSkillFx, type SkillFx } from "./skillFx";
 
 export interface GameScene {
@@ -15,10 +16,15 @@ export interface GameScene {
   shake(amount: number): void;
   render(dt: number): void;
   resize(): void;
+  /** Mounts a fighter at the arena center with a close camera framed left (~35% of width); null restores the match camera. */
+  setShowcase(model: FighterModel | null): void;
 }
 
 /** Half-width (m) of the play area the camera must always fit. */
 const FIT_RADIUS = 6.7;
+/** Showcase camera: distance multiplier and how far (fraction of width) the view shifts so the fighter sits at ~35%. */
+const SHOWCASE_ZOOM = 0.42;
+const SHOWCASE_SHIFT = 0.15;
 const CAMERA_PITCH = THREE.MathUtils.degToRad(58); // elevation angle above the floor
 
 export function createScene(canvas: HTMLCanvasElement, tileCount: number): GameScene {
@@ -53,6 +59,7 @@ export function createScene(canvas: HTMLCanvasElement, tileCount: number): GameS
   const skillFx = createSkillFx(scene);
 
   let shakeAmt = 0;
+  let showcase: FighterModel | null = null;
   const base = new THREE.Vector3();
 
   function resize() {
@@ -64,10 +71,12 @@ export function createScene(canvas: HTMLCanvasElement, tileCount: number): GameS
     const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
     const distV = (FIT_RADIUS * Math.sin(CAMERA_PITCH) + 0.5) / Math.tan(vFov / 2);
     const distH = FIT_RADIUS / Math.tan(hFov / 2);
-    const dist = Math.max(distV, distH);
+    const dist = Math.max(distV, distH) * (showcase ? SHOWCASE_ZOOM : 1);
     base.set(0, Math.sin(CAMERA_PITCH) * dist, Math.cos(CAMERA_PITCH) * dist);
     camera.position.copy(base);
-    camera.lookAt(0, -0.3, 0.4);
+    camera.lookAt(0, showcase ? 0.6 : -0.3, showcase ? 0 : 0.4);
+    if (showcase) camera.setViewOffset(w, h, w * SHOWCASE_SHIFT, 0, w, h);
+    else camera.clearViewOffset();
     camera.updateProjectionMatrix();
   }
   resize();
@@ -96,5 +105,14 @@ export function createScene(canvas: HTMLCanvasElement, tileCount: number): GameS
       renderer.render(scene, camera);
     },
     resize,
+    setShowcase(model) {
+      if (showcase) scene.remove(showcase.root);
+      showcase = model;
+      if (model) {
+        model.root.position.set(0, 0, 0);
+        scene.add(model.root);
+      }
+      resize();
+    },
   };
 }

@@ -4,9 +4,10 @@ import { createScene } from "./render/scene";
 import { createControls } from "./input/input";
 import { createHud } from "./ui/hud";
 import { startLocalGame } from "./game/localGame";
-import { sanitizeNickname } from "./meta/profile";
+import { defaultRandomNick, loadProfile, saveProfile, type Profile } from "./meta/profile";
+import { createSplashScreen } from "./ui/screens/splash";
+import { createHomeScreen } from "./ui/screens/home";
 
-const NICK_KEY = "lavasumo.nickname";
 const ID_KEY = "lavasumo.anonId";
 
 function storage(key: string, value?: string): string | null {
@@ -29,41 +30,59 @@ const controls = createControls(ui);
 controls.setEnabled(false);
 const hud = createHud(ui);
 
-// --- Home screen (F1: nickname → play in ≤ 2 taps) ---
-const home = document.createElement("div");
-home.className = "home";
-home.innerHTML = `
-  <div class="home-card">
-    <h1>Lava <span>Sumo</span></h1>
-    <p class="tag">Shove your friends into the lava. Last one standing wins.</p>
-    <label class="nick">
-      <span>Nickname</span>
-      <input maxlength="12" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Your name" />
-    </label>
-    <button class="btn primary play">Play vs Dummies</button>
-    <p class="hint"><b>Phone:</b> drag left side to move · <b>Desktop:</b> WASD / arrows</p>
-    <p class="build">Milestone 1 · local prototype</p>
-  </div>`;
-ui.appendChild(home);
-const nickInput = home.querySelector<HTMLInputElement>("input")!;
-nickInput.value = storage(NICK_KEY) ?? "";
-
-function showHome() {
-  home.classList.remove("hidden");
+// --- Profile (device-only; localStorage may be unavailable) ---
+let profileStore: Storage | null = null;
+try {
+  profileStore = localStorage;
+} catch {
+  profileStore = null;
 }
+let profile: Profile = loadProfile(profileStore, defaultRandomNick);
+saveProfile(profileStore, profile);
 
-home.querySelector<HTMLButtonElement>(".play")!.addEventListener("click", () => {
-  const nickname = sanitizeNickname(nickInput.value);
-  storage(NICK_KEY, nickname);
-  nickInput.value = nickname;
-  nickInput.blur();
-  home.classList.add("hidden");
+/** True while Splash or Home is up and the idle scene should animate. */
+let idleActive = true;
+let homeActive = false;
+
+function startMatch() {
+  idleActive = false;
+  homeActive = false;
   // Landscape is preferred; try to lock it on phones that allow it (ignored elsewhere).
   (screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> })
     .lock?.("landscape")
     .catch(() => {});
-  startLocalGame(gs, controls, hud, { nickname, character: "elephant", onExit: showHome });
+  home.hide(); // also restores the match camera
+  startLocalGame(gs, controls, hud, {
+    nickname: profile.nickname,
+    character: profile.equippedFighter,
+    onExit: () => {
+      idleActive = true;
+      homeActive = true;
+      home.show();
+    },
+  });
+}
+
+const home = createHomeScreen(ui, {
+  gs,
+  getProfile: () => profile,
+  setProfile: (p) => {
+    profile = p;
+    saveProfile(profileStore, p);
+  },
+  onQuickPlay: startMatch, // Task 12/13 replace this with the Setup screen / Quick Play loop
+  onInventory: () => {
+    // Task 11
+  },
 });
+const splash = createSplashScreen(ui, {
+  onContinue: () => {
+    splash.hide();
+    home.show();
+    homeActive = true;
+  },
+});
+splash.show();
 
 // --- Portrait prompt (A.7) ---
 const rotate = document.createElement("div");
@@ -84,8 +103,9 @@ function checkOrientation() {
 // --- Idle background: render the arena behind the home screen ---
 function idle(now: number) {
   requestAnimationFrame(idle);
-  if (home.classList.contains("hidden")) return;
+  if (!idleActive) return;
   const t = now / 1000;
+  if (homeActive) home.tick(t);
   gs.arena.update(tiles, 0, t);
   gs.updateLava(t);
   gs.render(1 / 60);

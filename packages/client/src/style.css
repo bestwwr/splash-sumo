@@ -55,58 +55,106 @@ html, body {
 }
 .btn.ghost { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); }
 
-/* ---------- Home ---------- */
+/* ---------- Splash ---------- */
+.splash {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  background: radial-gradient(ellipse at center, rgba(26, 13, 10, 0.2), rgba(26, 13, 10, 0.8));
+  cursor: pointer;
+}
+.splash-title, .home-title {
+  margin: 0;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  text-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+}
+.splash-title { font-size: clamp(44px, 12vw, 96px); }
+.splash-title span, .home-title span { color: var(--lava); text-shadow: 0 0 18px rgba(255, 106, 26, 0.6); }
+.splash-tap { margin: 0; font-size: 22px; font-weight: 800; animation: tap-pulse 1.2s ease-in-out infinite alternate; }
+.splash-foot { position: absolute; bottom: calc(14px + var(--safe-b)); margin: 0; font-size: 12px; color: var(--muted); letter-spacing: 0.06em; }
+@keyframes tap-pulse { from { opacity: 0.45; transform: scale(0.97); } to { opacity: 1; transform: scale(1.03); } }
+
+/* ---------- Home (layout B: showcase) ---------- */
 .home {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: radial-gradient(ellipse at center, rgba(26, 13, 10, 0.15), rgba(26, 13, 10, 0.75));
+  pointer-events: none !important;
+  background: linear-gradient(90deg, rgba(26, 13, 10, 0) 55%, rgba(26, 13, 10, 0.5));
 }
-.home-card {
-  width: min(420px, 100%);
-  padding: 24px 22px;
-  border-radius: var(--radius);
-  background: var(--card);
-  border: 1px solid var(--card-edge);
-  backdrop-filter: blur(6px);
-  text-align: center;
+.home > * { pointer-events: auto; position: absolute; }
+.home-title { top: calc(12px + var(--safe-t)); left: calc(16px + var(--safe-l)); font-size: clamp(24px, 4vw, 38px); pointer-events: none !important; }
+/* Fighter is rendered in the canvas at ~35% width; chips sit beneath it. */
+.home-fighter {
+  left: 35%;
+  bottom: calc(8% + var(--safe-b));
+  transform: translateX(-50%);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  gap: 8px;
 }
-.home h1 {
-  margin: 0;
-  font-size: clamp(34px, 8vw, 52px);
-  line-height: 1;
-  letter-spacing: -0.02em;
-  font-weight: 900;
-}
-.home h1 span { color: var(--lava); text-shadow: 0 0 18px rgba(255, 106, 26, 0.6); }
-.tag { margin: 0; color: var(--ink-dim); font-size: 15px; }
-.nick { display: flex; flex-direction: column; gap: 6px; text-align: left; font-size: 13px; color: var(--muted); font-weight: 700; }
-.nick input {
+.chip {
   font: inherit;
-  font-size: 18px;
-  font-weight: 700;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(0, 0, 0, 0.35);
+  font-weight: 800;
+  font-size: 15px;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(0, 0, 0, 0.5);
+  color: var(--ink);
+  cursor: pointer;
+  white-space: nowrap;
+}
+.chip:focus-visible { outline: 3px solid var(--lava-hot); outline-offset: 2px; }
+.change-chip { background: rgba(255, 106, 26, 0.4); }
+.nick-input {
+  position: static !important;
+  font: inherit;
+  font-weight: 800;
+  font-size: 16px;
+  min-height: 44px;
+  width: 180px;
+  text-align: center;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 2px solid var(--lava);
+  background: rgba(0, 0, 0, 0.7);
   color: var(--ink);
   user-select: text;
   -webkit-user-select: text;
 }
-.nick input:focus { outline: 2px solid var(--lava); }
-.hint { margin: 0; font-size: 13px; color: var(--muted); }
-.build { margin: 0; font-size: 11px; color: rgba(255, 255, 255, 0.3); letter-spacing: 0.08em; text-transform: uppercase; }
+.home-menu {
+  right: calc(16px + var(--safe-r));
+  top: 50%;
+  transform: translateY(-50%);
+  width: min(34%, 320px);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.home-menu .btn { min-height: 48px; padding: 10px 16px; font-size: 16px; width: 100%; }
+.home-menu .btn.primary { min-height: 68px; font-size: 22px; }
+.btn.soon {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px dashed rgba(255, 255, 255, 0.25);
+  color: var(--muted);
+  cursor: default;
+  font-size: 14px;
+}
 
 @media (max-height: 460px) {
-  .home-card { gap: 8px; padding: 16px 18px; }
-  .home h1 { font-size: 34px; }
-  .tag { font-size: 13px; }
+  .home-menu { gap: 8px; }
+  .home-menu .btn.primary { min-height: 56px; font-size: 20px; }
+  .home-menu .btn.soon { font-size: 12px; }
 }
+@media (prefers-reduced-motion: reduce) { .splash-tap { animation: none; } }
 
 /* ---------- Controls ---------- */
 .controls { position: absolute; inset: 0; pointer-events: none; }
