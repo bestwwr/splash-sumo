@@ -31,7 +31,7 @@ pnpm test         # shared simulation unit tests
 pnpm typecheck
 pnpm build
 pnpm deploy:staging   # staging Worker lava-sumo-staging (client + server, TEST badge); deploy freely
-pnpm deploy:prod      # prod Worker lava-sumo; only with PO OK
+pnpm deploy:prod      # prod Worker lava-sumo; only with maintainer approval
 ```
 
 To test online play locally, use two browser windows on different origins (e.g. `localhost:5173` and `127.0.0.1:5173`): tabs on one origin share a player token.
