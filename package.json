@@ -1,0 +1,16 @@
+{
+  "name": "lava-sumo",
+  "private": true,
+  "packageManager": "pnpm@12.21.0",
+  "type": "module",
+  "scripts": {
+    "dev": "pnpm --filter @lava-sumo/client dev",
+    "build": "pnpm -r build",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.0"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@lava-sumo/shared",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "test": "vitest run",
+    "sim": "vitest run --config vitest.sim.config.ts",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
+  }
+}
