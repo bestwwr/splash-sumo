@@ -85,9 +85,20 @@ Let up to 4 friends play the same Lava Sumo match from their own phones over the
 - **Errors** shown as friendly messages: not found / full / in progress → "Create your own room"; connection lost → auto-retry with backoff (0.5, 1, 2, 4 s) up to 15 s, then home + toast; `UPDATE_REQUIRED` → reload; server unreachable or over limit → "Online play is down/busy, try Quick Play".
 - Server URL from `VITE_SERVER_URL` at build time; in dev it defaults to the local `wrangler dev` address.
 
-### 5.4 Development & deployment
-- Dev: `pnpm dev` runs the client (5173) and `wrangler dev` (local emulator, 8787) together; several desktop browser tabs act as players. Phone tests use the deployed Worker.
-- Prod: `wrangler deploy` → `https://lava-sumo.<account>.workers.dev`. Server deploys are manual, after PO OK. The Pages workflow builds the client with `VITE_SERVER_URL=wss://lava-sumo.<account>.workers.dev` and keeps deploying on merge to main.
+### 5.4 Environments: test and prod
+Two fully separate environments (PO request), each with its own game server, rooms and URL:
+
+| | **Test (staging)** | **Prod** |
+|---|---|---|
+| Client | Served by the staging Worker itself (Workers static assets, free) at `https://lava-sumo-staging.<account>.workers.dev`, with a small **TEST** badge | GitHub Pages `https://bestwwr.github.io/splash-sumo/` |
+| Game server | Worker `lava-sumo-staging` (`wrangler deploy --env staging`), same origin as its client | Worker `lava-sumo` (`wrangler deploy`) |
+| Deployed from | Any branch, by `pnpm deploy:staging` — Claude may deploy here freely once the PO has logged in | `main` only, after PO OK (`pnpm deploy:prod` + Pages workflow) |
+| Who uses it | PO + friends trying new builds before release | Everyone (portfolio link) |
+
+- Build-time env: `VITE_APP_ENV` (`dev` / `staging` / `prod`) and `VITE_SERVER_URL` (`self` = same origin as the page; prod = the prod Worker URL; unset in dev = local `wrangler dev`).
+- Both Workers share the free plan's daily request limit (account-wide); staging traffic is small.
+- Release flow: feature branch → `pnpm deploy:staging` → test on phones → PO OK → merge to `main` → `pnpm deploy:prod` → Pages redeploys the prod client.
+- Dev: `pnpm dev` runs the client (5173) and `wrangler dev` (local emulator, 8787) together; several desktop browser tabs act as players.
 
 ## 6. Testing
 - Room-logic unit tests (plain Vitest on `room.ts`): create/join, full / in-progress rejections, host handoff, Start fills bots, match runs to RESULTS, Play again returns to LOBBY, disconnect → bot → reconnect with token restores control, 15 s expiry, input validation and rate limit, version mismatch, snapshot tile deltas rebuild the same tiles.

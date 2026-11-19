@@ -24,7 +24,9 @@
 - Links: `?room=ABCD` (no path routes; GitHub Pages).
 - Solo Quick Play keeps working with no server, and its existing tests stay green.
 - **Ruling:** skins are still "soon" in the client (no skin data exists), so the protocol carries no skin field; the spec's skin validation is deferred until skins exist.
-- No push, merge, or `wrangler deploy` without the PO's explicit OK. The PO creates the Cloudflare account.
+- Two environments (spec §5.4): **staging** = Worker `lava-sumo-staging` serving the staging client build (static assets) + game server, same origin, **TEST** badge; **prod** = Worker `lava-sumo` + GitHub Pages client. Build env vars: `VITE_APP_ENV` (`dev`|`staging`|`prod`), `VITE_SERVER_URL` (`self` → `location.origin`; a URL; unset in dev → `http(s)://<hostname>:8787`).
+- Staging deploys (`pnpm deploy:staging`) are allowed without asking once the PO has logged in to Cloudflare; **prod** deploys, push, and merge need the PO's explicit OK.
+- No push, merge, or prod `wrangler deploy` without the PO's explicit OK. The PO creates the Cloudflare account.
 - Commits end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 
 ## Review Focus
@@ -117,8 +119,8 @@ Player id = `p` + slot order of joining (`p1`…`p4`), bots `bot1`…; `token` �
 ### Task 3: Worker + `MatchRoom` Durable Object
 
 **Files:**
-- Create: `packages/server/wrangler.toml` (name `lava-sumo`, `main = "src/worker.ts"`, DO binding `ROOMS` → class `MatchRoom`, `[[migrations]] new_sqlite_classes = ["MatchRoom"]`, `compatibility_date` = today), `packages/server/src/worker.ts`, `packages/server/src/matchRoom.ts`, `packages/server/vitest.config.ts` (workers pool)
-- Modify: root `package.json` (`dev` runs client + `wrangler dev` together; add a tiny dependency-free runner or `pnpm -r --parallel dev`)
+- Create: `packages/server/wrangler.toml` (top level = prod, name `lava-sumo`, no assets; `[env.staging]` name `lava-sumo-staging` with its own DO binding/migration and `assets = { directory = "../client/dist-staging" }` so the Worker serves the staging client and falls through to the API for `/rooms*` and `/health`;  `main = "src/worker.ts"`, DO binding `ROOMS` → class `MatchRoom`, `[[migrations]] new_sqlite_classes = ["MatchRoom"]`, `compatibility_date` = today), `packages/server/src/worker.ts`, `packages/server/src/matchRoom.ts`, `packages/server/vitest.config.ts` (workers pool)
+- Modify: root `package.json` (`dev` runs client + `wrangler dev` together via a tiny dependency-free runner or `pnpm -r --parallel dev`; `build:staging` builds the client with `VITE_APP_ENV=staging VITE_SERVER_URL=self` into `packages/client/dist-staging`; `deploy:staging` = `build:staging` + `wrangler deploy --env staging`; `deploy:prod` = `wrangler deploy`)
 - Test: `packages/server/test/worker.test.ts`
 
 **Interfaces — Consumes:** `RoomLogic` (Task 2), `generateRoomCode`, `normalizeRoomCode`, `PROTOCOL_VERSION`.
@@ -188,7 +190,8 @@ class InputSender { constructor(send, nowMs); update(input: InputState): void } 
 - Test: `packages/client/test/roomClient.test.ts`, `packages/client/test/friends.test.ts`, `packages/client/test/lobby.test.ts`
 
 **Interfaces — Produces:**
-- `serverUrl(): {http: string; ws: string}` — `import.meta.env.VITE_SERVER_URL` if set, else `http(s)://<location.hostname>:8787`.
+- `serverUrl(): {http: string; ws: string}` — `VITE_SERVER_URL === "self"` → `location.origin`; another value → that URL; unset → `http(s)://<location.hostname>:8787`; `ws` swaps the scheme to `ws`/`wss`.
+- `VITE_APP_ENV === "staging"` → a small fixed **TEST** badge in a corner on every screen.
 - `createRoom(): Promise<string>`; `checkRoom(code): Promise<"ok"|"NOT_FOUND"|"FULL"|"IN_PROGRESS"|"DOWN">`.
 - `connectRoom(code, join: {token, nickname, character}, handlers: {onMsg(m: ServerMsg), onState(s: "open"|"reconnecting"|"lost")}): RoomConnection` with `send(m)`, `close()`; auto-reconnect with backoff 500, 1000, 2000, 4000 ms, … until 15 000 ms total, re-sending `join` with the same token.
 - Player token: `lavasumo.playerToken` in localStorage (reuse existing `lavasumo.anonId` value if present).
@@ -199,6 +202,7 @@ class InputSender { constructor(send, nowMs); update(input: InputState): void } 
 
 - [ ] **Step 1: Write failing tests** (happy-dom, fake `fetch`/`WebSocket`):
   - `checkRoom` maps 200/404/409 bodies and network errors to the right result.
+  - `serverUrl` for `self` on `https://x.workers.dev` → `{http:"https://x.workers.dev", ws:"wss://x.workers.dev"}`; unset on `http://localhost:5173` → `ws://localhost:8787`.
   - `connectRoom`: socket close → `onState("reconnecting")`, new socket after 500 ms re-sends `join` with same token; no reconnect after 15 s total → `onState("lost")`.
   - Friends: typing `ab cd` enables Join with code `ABCD`; `AB1` keeps it disabled.
   - Lobby: renders 4 slots from a `lobby` msg (2 members + 2 "Bot"), Start and difficulty visible only when `you === hostId`; tapping Medium sends `{t:"diff", difficulty:"medium"}`.
@@ -212,10 +216,10 @@ class InputSender { constructor(send, nowMs); update(input: InputState): void } 
 ### Task 6: Production wiring + docs (deploy only with PO OK)
 
 **Files:**
-- Modify: `.github/workflows/pages.yml` (build step env `VITE_SERVER_URL: ${{ vars.SERVER_URL }}`), `README.md` (how to play with friends, dev commands), `DECISIONS.md` (D-MP-1: Cloudflare Workers + DOs supersede SPEC D5; D-MP-2: interpolation only, no prediction; D-MP-3: no skins in protocol yet), `SPEC.md` (one-line pointer at D5 to D-MP-1)
+- Modify: `.github/workflows/pages.yml` (build step env `VITE_APP_ENV: prod`, `VITE_SERVER_URL: ${{ vars.SERVER_URL }}`), `README.md` (how to play with friends, dev commands), `DECISIONS.md` (D-MP-1: Cloudflare Workers + DOs supersede SPEC D5; D-MP-2: interpolation only, no prediction; D-MP-3: no skins in protocol yet), `SPEC.md` (one-line pointer at D5 to D-MP-1)
 
 - [ ] **Step 1:** Make the edits; `pnpm test && pnpm typecheck && pnpm build` green.
 - [ ] **Step 2: Commit** `chore: deploy wiring and docs for online play`.
 - [ ] **Step 3 (PO):** PO creates the free Cloudflare account and runs `! npx wrangler login`.
-- [ ] **Step 4 (after PO OK):** `pnpm --filter @lava-sumo/server deploy` → note the `workers.dev` URL; `curl <url>/health` → `{"ok":true}`; set repo variable `gh variable set SERVER_URL --body "https://lava-sumo.<account>.workers.dev"`.
-- [ ] **Step 5 (after PO OK):** push branch, open PR (CI green), merge → Pages redeploys; on two phones (one on cellular) create + join a room on the live site and finish a match.
+- [ ] **Step 4 (staging):** `pnpm deploy:staging` → open `https://lava-sumo-staging.<account>.workers.dev` (TEST badge visible), `curl <url>/health` → `{"ok":true}`; PO + friends test on phones (one on cellular): create, join by link, finish a match, Play again, background a phone for 5 s.
+- [ ] **Step 5 (prod, after PO OK):** `pnpm deploy:prod` → `curl https://lava-sumo.<account>.workers.dev/health`; `gh variable set SERVER_URL --body "https://lava-sumo.<account>.workers.dev"`; push branch, open PR (CI green), merge → Pages redeploys; create + join a room on the live site from two phones.
