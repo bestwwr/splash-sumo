@@ -394,7 +394,7 @@ html, body {
   font-size: calc(14 * var(--u));
   min-height: calc(44 * var(--u));
   padding: 0 calc(16 * var(--u));
-  border-radius: calc(999 * var(--u));
+  border-radius: 999px;
   border: 1px solid transparent;
   background: transparent;
   color: var(--muted);
