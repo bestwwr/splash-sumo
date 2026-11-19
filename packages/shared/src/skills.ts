@@ -9,6 +9,11 @@ import { SkillPhase, type Inputs, type MatchState, type Player, type SimEvent } 
 
 const EPS = 1e-6;
 
+/** True while a turtle's shell is up (immobile, knockback-immune, reflects hits). */
+export function isShelled(p: Player): boolean {
+  return p.skillPhase === SkillPhase.ACTIVE && p.skillPhaseMs > 0 && SKILL_OF[p.character] === "shell";
+}
+
 function cooldownOf(skill: SkillId): number {
   switch (skill) {
     case "slam":
@@ -66,7 +71,11 @@ export function updateSkills(state: MatchState, inputs: Inputs, events: SimEvent
           p.vz = p.dashDirZ * vmax;
         }
       } else {
-        // next task: shell phases
+        p.skillPhaseMs -= dtMs;
+        if (p.skillPhaseMs <= EPS) {
+          p.skillPhase = SkillPhase.NONE;
+          p.skillPhaseMs = 0;
+        }
       }
     }
 
@@ -95,7 +104,10 @@ export function updateSkills(state: MatchState, inputs: Inputs, events: SimEvent
         p.skillPhase = SkillPhase.ACTIVE;
         p.skillPhaseMs = CONFIG.DASH_DURATION_MS;
       } else {
-        continue; // next task: shell activation (no-op for now)
+        p.skillPhase = SkillPhase.ACTIVE;
+        p.skillPhaseMs = CONFIG.SHELL_DURATION_MS;
+        p.vx = 0;
+        p.vz = 0;
       }
       p.skillCooldownMs = cooldownOf(skill);
       events.push({ type: "skillUsed", playerId: p.id, skill });

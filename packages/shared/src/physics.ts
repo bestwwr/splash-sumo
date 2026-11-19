@@ -3,6 +3,7 @@
  */
 import { CONFIG } from "./config";
 import { enduranceMult, maxSpeed, powerMult, SKILL_OF } from "./characters";
+import { isShelled } from "./skills";
 import { SkillPhase, type Player, PlayerInput, SimEvent } from "./types";
 
 /** Clamp an input vector to length ≤ 1 and sanitize NaN/Infinity (§2.4, §3.7). */
@@ -34,6 +35,12 @@ export function applyMovement(p: Player, input: PlayerInput | undefined, dtMs: n
     p.x += p.vx * moveSec;
     p.z += p.vz * moveSec;
     p.skillPhaseMs = Math.max(0, p.skillPhaseMs - dtMs);
+    return;
+  }
+  if (isShelled(p)) {
+    // Shell: rooted. Input ignored, no movement.
+    p.vx = 0;
+    p.vz = 0;
     return;
   }
   const stunned = p.hitStunMs > 0 || p.fallingMs >= 0 || p.skillPhase === SkillPhase.WINDUP;
@@ -73,6 +80,7 @@ export function applyRadialImpulse(
   byId: string | null,
   nowMs: number,
 ): void {
+  if (isShelled(p)) return;
   const dx = p.x - fromX;
   const dz = p.z - fromZ;
   const d = Math.hypot(dx, dz);
@@ -83,6 +91,32 @@ export function applyRadialImpulse(
   p.hitStunMs = stunMs;
   p.lastHitById = byId;
   p.lastHitAtMs = nowMs;
+}
+
+/**
+ * `other` hit a shelled player. (nx, nz) points from `other` toward the shell.
+ * The shell is unmoved; `other` is reflected at full force away from it.
+ */
+function resolveShellHit(other: Player, shell: Player, nx: number, nz: number, nowMs: number): SimEvent[] {
+  const closing = Math.max(0, other.vx * nx + other.vz * nz);
+  const effective = Math.max(closing, CONFIG.MIN_SHOVE_SPEED);
+  const dashMult = isDashing(other) ? CONFIG.DASH_KNOCK_MULT : 1;
+  const speed =
+    (CONFIG.BASE_KNOCK * powerMult(other.character) * dashMult * effective * CONFIG.SHELL_REFLECT_MULT) /
+    enduranceMult(other.character);
+  // Kill the approach component, then bounce away.
+  other.vx -= closing * nx;
+  other.vz -= closing * nz;
+  other.vx -= nx * speed;
+  other.vz -= nz * speed;
+  if (isDashing(other)) {
+    other.skillPhase = SkillPhase.NONE;
+    other.skillPhaseMs = 0;
+  }
+  other.hitStunMs = CONFIG.HIT_STUN_MS;
+  other.lastHitById = shell.id;
+  other.lastHitAtMs = nowMs;
+  return [{ type: "hit", attackerId: other.id, victimId: shell.id, strength: speed }];
 }
 
 /**
@@ -104,12 +138,19 @@ export function resolveCollision(a: Player, b: Player, nowMs: number): SimEvent[
   const nx = dist > 1e-6 ? dx / dist : 1;
   const nz = dist > 1e-6 ? dz / dist : 0;
 
-  // 1) Positional separation, split evenly.
+  const aShell = isShelled(a);
+  const bShell = isShelled(b);
+
+  // 1) Positional separation: even split, unless exactly one is shelled (it stays put).
   const overlap = minDist - dist;
-  a.x -= nx * overlap * 0.5;
-  a.z -= nz * overlap * 0.5;
-  b.x += nx * overlap * 0.5;
-  b.z += nz * overlap * 0.5;
+  const aShare = aShell && !bShell ? 0 : bShell && !aShell ? 1 : 0.5;
+  a.x -= nx * overlap * aShare;
+  a.z -= nz * overlap * aShare;
+  b.x += nx * overlap * (1 - aShare);
+  b.z += nz * overlap * (1 - aShare);
+
+  if (aShell && bShell) return []; // shell vs shell: separation only
+  if (aShell || bShell) return resolveShellHit(aShell ? b : a, aShell ? a : b, aShell ? -nx : nx, aShell ? -nz : nz, nowMs);
 
   // 2) Closing speed along the normal (positive = approaching).
   const aN = a.vx * nx + a.vz * nz;

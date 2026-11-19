@@ -64,7 +64,10 @@ export const CONFIG = {
   DASH_DURATION_MS: 250,
   DASH_COOLDOWN_MS: 6000,
   DASH_KNOCK_MULT: 1.5,
+  SHELL_DURATION_MS: 1500,
   SHELL_COOLDOWN_MS: 10_000,
+  /** Multiplier on the full-force reflection a shelled turtle gives attackers. */
+  SHELL_REFLECT_MULT: 1.0,
 
   // --- Elimination (A.2) ---
   FALL_ELIMINATE_MS: 500,

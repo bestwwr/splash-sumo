@@ -164,3 +164,59 @@ describe("monkey dash", () => {
     expect(s.players[0]!.skillPhase).toBe(SkillPhase.NONE);
   });
 });
+
+describe("turtle shell", () => {
+  const SHELL_TICKS = Math.ceil(CONFIG.SHELL_DURATION_MS / CONFIG.TICK_MS);
+  const shelled = (id: string, x: number, z: number, slot = 0) => {
+    const p = makePlayer(id, x, z, { character: "turtle", slot });
+    p.skillPhase = SkillPhase.ACTIVE;
+    p.skillPhaseMs = CONFIG.SHELL_DURATION_MS;
+    p.skillCooldownMs = CONFIG.SHELL_COOLDOWN_MS;
+    return p;
+  };
+
+  it("shell: immobile and knockback-immune for 1.5 s", () => {
+    const s0 = arena(shelled("t", 0, 0), makePlayer("e", -0.9, 0, { slot: 1, vx: 4.5 }));
+    const { s } = run(s0, 4, { t: press({ dirX: 1 }) });
+    expect(s.players[0]!.x).toBe(0);
+    expect(s.players[0]!.z).toBe(0);
+    expect(s.players[0]!.vx).toBe(0);
+    expect(s.players[1]!.vx).toBeLessThan(-3);
+  });
+
+  it("shell: immune to slam", () => {
+    const s0 = arena(makePlayer("e", 0, 0), shelled("t", 1.2, 0, 1));
+    const { s, events } = run(s0, WINDUP_TICKS + 1, { e: press() });
+    expect(count(events, "slamImpact")).toBe(1);
+    expect(s.players[1]!.vx).toBe(0);
+  });
+
+  it("shell vs shell: no impulse, just separation", () => {
+    const s0 = arena(shelled("a", 0, 0), shelled("b", 0.8, 0, 1));
+    const { s } = run(s0, 1, {});
+    expect(s.players[0]!.vx).toBe(0);
+    expect(s.players[1]!.vx).toBe(0);
+    const d = s.players[1]!.x - s.players[0]!.x;
+    expect(d).toBeGreaterThanOrEqual(CONFIG.PLAYER_RADIUS * 2 - 1e-6);
+  });
+
+  it("shell: still falls when its tile sinks", () => {
+    const s0 = arena(shelled("t", 0, 0), makePlayer("far", -3, 0, { slot: 1 }));
+    for (const t of s0.tiles) if (t.q === 0 && t.r === 0) t.state = TileState.GONE;
+    const { s } = run(s0, 2, {});
+    expect(s.players[0]!.fallingMs).toBeGreaterThanOrEqual(0);
+    expect(s.players[0]!.skillPhase).toBe(SkillPhase.NONE);
+  });
+
+  it("shell: activates, ends after 1.5 s and the turtle can move again", () => {
+    const s0 = arena(makePlayer("t", 0, 0, { character: "turtle" }), makePlayer("far", -3, 0, { slot: 1 }));
+    const a = run(s0, 3, { t: press({ dirX: 1 }) });
+    expect(a.s.players[0]!.x).toBe(0);
+    expect(a.s.players[0]!.skillPhase).toBe(SkillPhase.ACTIVE);
+    expect(a.events.some((e) => e.type === "skillUsed")).toBe(true);
+    const b = run(a.s, SHELL_TICKS + 1, { t: { seq: 1, dirX: 1, dirZ: 0, skill: false } });
+    expect(b.s.players[0]!.skillPhase).toBe(SkillPhase.NONE);
+    const c = run(b.s, 5, { t: { seq: 1, dirX: 1, dirZ: 0, skill: false } });
+    expect(c.s.players[0]!.x).toBeGreaterThan(0.05);
+  });
+});
