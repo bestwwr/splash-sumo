@@ -96,4 +96,16 @@ describe("worker", () => {
     expect(kinds.indexOf("start")).toBeLessThan(kinds.indexOf("snap"));
     ws.close();
   });
+
+  it("idle lobby keeps state across messages >= 1 s apart", async () => {
+    const code = await createRoom();
+    const { ws, msgs, waitFor } = await openWs(code, 1);
+    ws.send(JSON.stringify(join));
+    await waitFor((m) => m.t === "lobby");
+    await new Promise((r) => setTimeout(r, 1200));
+    ws.send(JSON.stringify({ t: "diff", difficulty: "hard" }));
+    await waitFor((m) => m.t === "lobby" && m.difficulty === "hard");
+    expect(msgs.some((m) => m.t === "error")).toBe(false);
+    ws.close();
+  });
 });

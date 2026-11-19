@@ -6,45 +6,37 @@ import { RoomLogic, type Outgoing } from "./room";
 const FLAG_KEY = "room";
 const CLOSE_CODE = 4000;
 
-interface Attachment {
-  conn: string;
-}
-
 function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0]!;
 }
 
+/**
+ * Standard (non-hibernating) WebSockets: the DO stays in memory while any socket is open, so the
+ * in-memory RoomLogic is never lost mid-lobby. The storage flag only records that a code is taken.
+ */
 export class MatchRoom extends DurableObject {
   private logic: RoomLogic | null = null;
-  private exists = false;
+  private readonly sockets = new Map<string, WebSocket>();
   private timer: ReturnType<typeof setInterval> | null = null;
 
   constructor(ctx: DurableObjectState, env: unknown) {
     super(ctx, env as never);
-    ctx.blockConcurrencyWhile(async () => {
-      this.exists = (await ctx.storage.get<boolean>(FLAG_KEY)) === true;
-      // Woke from hibernation: in-memory room state is gone, so any surviving sockets are orphans.
-      const orphans = ctx.getWebSockets();
-      if (orphans.length > 0) {
-        for (const ws of orphans) this.closeWith(ws, "NOT_FOUND");
-        await this.destroy();
-      }
-    });
+    // A surviving flag at construction means the DO was evicted and its room is gone: free the code.
+    ctx.blockConcurrencyWhile(() => ctx.storage.delete(FLAG_KEY).then(() => undefined));
   }
 
   override async fetch(request: Request): Promise<Response> {
     const url = new URL(request.url);
     if (url.pathname === "/claim" && request.method === "POST") {
-      if (this.exists) return Response.json({ error: "TAKEN" }, { status: 409 });
-      this.exists = true;
+      if (this.logic) return Response.json({ error: "TAKEN" }, { status: 409 });
       await this.ctx.storage.put(FLAG_KEY, true);
       this.logic = this.newLogic();
       this.sync();
       return Response.json({ ok: true });
     }
     if (url.pathname === "/status") {
-      if (!this.exists) return Response.json({ error: "NOT_FOUND" }, { status: 404 });
-      const j = this.room().joinable();
+      if (!this.logic) return Response.json({ error: "NOT_FOUND" }, { status: 404 });
+      const j = this.logic.joinable();
       return j.ok ? Response.json({ ok: true }) : Response.json({ reason: j.code }, { status: 409 });
     }
     if (url.pathname === "/ws") return this.upgrade(url);
@@ -54,67 +46,51 @@ export class MatchRoom extends DurableObject {
   private upgrade(url: URL): Response {
     const pair = new WebSocketPair();
     const [client, server] = [pair[0], pair[1]];
-    this.ctx.acceptWebSocket(server);
+    server.accept();
     if (url.searchParams.get("v") !== String(PROTOCOL_VERSION)) {
       this.closeWith(server, "UPDATE_REQUIRED");
-    } else if (!this.exists) {
-      this.closeWith(server, "NOT_FOUND");
+    } else if (!this.logic) {
+      this.closeWith(server, "NOT_FOUND"); // safety net: code unknown or room lost after eviction
     } else {
       const conn = crypto.randomUUID();
-      server.serializeAttachment({ conn } satisfies Attachment);
-      this.deliver(this.room().connect(conn, Date.now()));
+      this.sockets.set(conn, server);
+      server.addEventListener("message", (e: MessageEvent) => this.onMessage(conn, e.data));
+      server.addEventListener("close", () => this.onGone(conn));
+      server.addEventListener("error", () => this.onGone(conn));
+      this.deliver(this.logic.connect(conn, Date.now()));
       this.sync();
     }
     return new Response(null, { status: 101, webSocket: client });
   }
 
-  override webSocketMessage(ws: WebSocket, message: string | ArrayBuffer): void {
-    const conn = this.connOf(ws);
-    if (conn === null) return;
-    if (!this.exists) return this.closeWith(ws, "NOT_FOUND");
+  private onMessage(conn: string, data: unknown): void {
+    if (!this.logic) return;
     let raw: unknown;
     try {
-      raw = typeof message === "string" ? JSON.parse(message) : undefined;
+      raw = typeof data === "string" ? JSON.parse(data) : undefined;
     } catch {
       raw = undefined;
     }
-    this.deliver(this.room().message(conn, raw, Date.now()));
+    this.deliver(this.logic.message(conn, raw, Date.now()));
     this.sync();
   }
 
-  override webSocketClose(ws: WebSocket): void {
-    this.dropSocket(ws);
-  }
-
-  override webSocketError(ws: WebSocket): void {
-    this.dropSocket(ws);
-  }
-
-  // ---- internals ----
-
-  private dropSocket(ws: WebSocket): void {
-    const conn = this.connOf(ws);
+  private onGone(conn: string): void {
+    const ws = this.sockets.get(conn);
+    if (!ws) return;
+    this.sockets.delete(conn);
     try {
       ws.close(1000);
     } catch {
       /* already closed */
     }
-    if (conn === null || !this.logic) return;
+    if (!this.logic) return;
     this.deliver(this.logic.disconnect(conn, Date.now()));
     this.sync();
   }
 
   private newLogic(): RoomLogic {
     return new RoomLogic(this.ctx.id.name ?? "????", { random: Math.random, randomSeed }, Date.now());
-  }
-
-  /** The in-memory room, recreated empty if the flag survived an eviction. */
-  private room(): RoomLogic {
-    return (this.logic ??= this.newLogic());
-  }
-
-  private connOf(ws: WebSocket): string | null {
-    return (ws.deserializeAttachment() as Attachment | null)?.conn ?? null;
   }
 
   private closeWith(ws: WebSocket, code: ErrorCode): void {
@@ -127,23 +103,20 @@ export class MatchRoom extends DurableObject {
   }
 
   private deliver(out: Outgoing[]): void {
-    if (out.length === 0) return;
-    const sockets = this.ctx.getWebSockets();
-    const byConn = new Map<string, WebSocket>();
-    for (const ws of sockets) {
-      const c = this.connOf(ws);
-      if (c !== null) byConn.set(c, ws);
-    }
     const encoded = new Map<ServerMsg, string>();
     for (const o of out) {
       if ("close" in o) {
-        const ws = byConn.get(o.close);
-        if (ws) this.closeWith(ws, o.code);
+        const ws = this.sockets.get(o.close);
+        if (ws) {
+          this.closeWith(ws, o.code);
+          // logic already forgot this conn (kick/replace); drop our handle so the close event is a no-op
+          this.sockets.delete(o.close);
+        }
         continue;
       }
       const text = encoded.get(o.msg) ?? JSON.stringify(o.msg);
       encoded.set(o.msg, text);
-      const targets = o.to === "all" ? byConn.values() : [byConn.get(o.to)];
+      const targets = o.to === "all" ? [...this.sockets.values()] : [this.sockets.get(o.to)];
       for (const ws of targets) {
         try {
           ws?.send(text);
@@ -181,7 +154,6 @@ export class MatchRoom extends DurableObject {
     if (this.timer !== null) clearInterval(this.timer);
     this.timer = null;
     this.logic = null;
-    this.exists = false;
     await this.ctx.storage.delete(FLAG_KEY);
   }
 }
