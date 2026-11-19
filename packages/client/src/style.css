@@ -91,8 +91,8 @@ html, body {
 .home-title { top: calc(12px + var(--safe-t)); left: calc(16px + var(--safe-l)); font-size: clamp(24px, 4vw, 38px); pointer-events: none !important; }
 /* Fighter is rendered in the canvas at ~35% width; chips sit beneath it. */
 .home-fighter {
-  left: 35%;
-  bottom: calc(8% + var(--safe-b));
+  left: var(--showcase-x, 35%);
+  top: calc(var(--showcase-y, 70%) + 10px);
   transform: translateX(-50%);
   display: flex;
   flex-direction: column;

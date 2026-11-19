@@ -16,8 +16,12 @@ export function createSplashScreen(root: HTMLElement, deps: { onContinue(): void
   let armed = false;
   function go(e: Event) {
     if (!armed) return;
+    if (e instanceof KeyboardEvent) {
+      if (e.ctrlKey || e.metaKey || e.altKey) return;
+      if (e.key === "Shift" || e.key === "Control" || e.key === "Alt" || e.key === "Meta" || e.key === "CapsLock") return;
+      if (e.key === "Enter" || e.key === " ") e.preventDefault();
+    } else e.preventDefault();
     armed = false;
-    e.preventDefault();
     window.removeEventListener("keydown", go, true);
     el.removeEventListener("pointerdown", go);
     deps.onContinue();

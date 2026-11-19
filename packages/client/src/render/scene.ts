@@ -23,7 +23,9 @@ export interface GameScene {
 /** Half-width (m) of the play area the camera must always fit. */
 const FIT_RADIUS = 6.7;
 /** Showcase camera: distance multiplier and how far (fraction of width) the view shifts so the fighter sits at ~35%. */
-const SHOWCASE_ZOOM = 0.42;
+const SHOWCASE_DIST = 9.5;
+const SHOWCASE_PITCH = THREE.MathUtils.degToRad(24);
+const SHOWCASE_YAW = 0.5; // 3/4 view
 const SHOWCASE_SHIFT = 0.15;
 const CAMERA_PITCH = THREE.MathUtils.degToRad(58); // elevation angle above the floor
 
@@ -61,6 +63,7 @@ export function createScene(canvas: HTMLCanvasElement, tileCount: number): GameS
   let shakeAmt = 0;
   let showcase: FighterModel | null = null;
   const base = new THREE.Vector3();
+  const footPos = new THREE.Vector3();
 
   function resize() {
     const w = window.innerWidth, h = window.innerHeight;
@@ -71,13 +74,22 @@ export function createScene(canvas: HTMLCanvasElement, tileCount: number): GameS
     const hFov = 2 * Math.atan(Math.tan(vFov / 2) * camera.aspect);
     const distV = (FIT_RADIUS * Math.sin(CAMERA_PITCH) + 0.5) / Math.tan(vFov / 2);
     const distH = FIT_RADIUS / Math.tan(hFov / 2);
-    const dist = Math.max(distV, distH) * (showcase ? SHOWCASE_ZOOM : 1);
-    base.set(0, Math.sin(CAMERA_PITCH) * dist, Math.cos(CAMERA_PITCH) * dist);
+    const dist = Math.max(distV, distH);
+    if (showcase) base.set(0, Math.sin(SHOWCASE_PITCH) * SHOWCASE_DIST, Math.cos(SHOWCASE_PITCH) * SHOWCASE_DIST);
+    else base.set(0, Math.sin(CAMERA_PITCH) * dist, Math.cos(CAMERA_PITCH) * dist);
     camera.position.copy(base);
-    camera.lookAt(0, showcase ? 0.6 : -0.3, showcase ? 0 : 0.4);
+    camera.lookAt(0, showcase ? 0.9 : -0.3, showcase ? 0 : 0.4);
     if (showcase) camera.setViewOffset(w, h, w * SHOWCASE_SHIFT, 0, w, h);
     else camera.clearViewOffset();
     camera.updateProjectionMatrix();
+    if (showcase) {
+      // Publish the fighter's foot position (px) so the Home chips can sit just under it.
+      camera.updateMatrixWorld();
+      footPos.set(0, 0, 0).project(camera);
+      const rootEl = document.documentElement.style;
+      rootEl.setProperty("--showcase-x", `${((footPos.x + 1) / 2) * w}px`);
+      rootEl.setProperty("--showcase-y", `${((1 - footPos.y) / 2) * h}px`);
+    }
   }
   resize();
 
@@ -110,6 +122,7 @@ export function createScene(canvas: HTMLCanvasElement, tileCount: number): GameS
       showcase = model;
       if (model) {
         model.root.position.set(0, 0, 0);
+        model.root.rotation.y = SHOWCASE_YAW;
         scene.add(model.root);
       }
       resize();
