@@ -1,6 +1,7 @@
 {
   "name": "lava-sumo",
   "private": true,
+  "packageManager": "pnpm@12.21.0",
   "type": "module",
   "scripts": {
     "dev": "pnpm --filter @lava-sumo/client dev",

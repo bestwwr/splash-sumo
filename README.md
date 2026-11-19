@@ -5,6 +5,10 @@ Up to 4 players stand on basalt tiles over a lava lake. The floor cracks and mel
 
 > Portfolio project: a Product Owner shipping a real-time multiplayer browser game with AI coding agents. Full spec: [`SPEC.md`](SPEC.md) · build decisions: [`DECISIONS.md`](DECISIONS.md).
 
+## Play it here
+
+[**Play Lava Sumo**](https://bestwwr.github.io/splash-sumo/) (goes live after the playtest)
+
 ## Status
 
 | Milestone | Scope | Status |
