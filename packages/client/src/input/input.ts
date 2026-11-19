@@ -13,7 +13,15 @@ export interface InputState {
 const JOY_RADIUS = 56; // px of travel for full speed
 const DEAD_ZONE = 0.12;
 
+export interface SkillButtonState {
+  label: string;
+  /** 0 = ready, 1 = just used. */
+  cooldownFrac: number;
+  ready: boolean;
+}
+
 export interface Controls {
+  setSkillState(s: SkillButtonState): void;
   read(): InputState;
   setEnabled(on: boolean): void;
   destroy(): void;
@@ -25,13 +33,18 @@ export function createControls(root: HTMLElement): Controls {
   layer.innerHTML = `
     <div class="joy-zone"></div>
     <div class="joy-base"><div class="joy-knob"></div></div>
-    <button class="skill-btn" aria-label="Skill"><span>SKILL</span></button>
+    <button class="skill-btn" aria-label="Skill"><span class="skill-label">SKILL</span></button>
   `;
   root.appendChild(layer);
   const zone = layer.querySelector<HTMLDivElement>(".joy-zone")!;
   const base = layer.querySelector<HTMLDivElement>(".joy-base")!;
   const knob = layer.querySelector<HTMLDivElement>(".joy-knob")!;
   const skillBtn = layer.querySelector<HTMLButtonElement>(".skill-btn")!;
+
+  const skillLabel = skillBtn.querySelector<HTMLSpanElement>(".skill-label")!;
+  let lastLabel = "SKILL";
+  let lastFrac = -1;
+  let lastReady = false;
 
   let enabled = true;
   let joyId: number | null = null;
@@ -106,6 +119,21 @@ export function createControls(root: HTMLElement): Controls {
   window.addEventListener("blur", onBlur);
 
   return {
+    setSkillState(s) {
+      if (s.label !== lastLabel) {
+        lastLabel = s.label;
+        skillLabel.textContent = s.label;
+      }
+      const frac = Math.round(Math.min(1, Math.max(0, s.cooldownFrac)) * 200) / 200;
+      if (frac !== lastFrac) {
+        lastFrac = frac;
+        skillBtn.style.setProperty("--cd", `${frac * 360}deg`);
+      }
+      if (s.ready !== lastReady) {
+        lastReady = s.ready;
+        skillBtn.classList.toggle("ready", s.ready);
+      }
+    },
     read() {
       if (!enabled) return { dirX: 0, dirZ: 0, skill: false };
       let x = jx, z = jy;

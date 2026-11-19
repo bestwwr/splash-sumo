@@ -5,8 +5,11 @@
  */
 import * as THREE from "three";
 import {
+  BotController,
   CONFIG,
   Phase,
+  SKILL_OF,
+  SkillPhase,
   createMatch,
   hexKey,
   step,
@@ -20,6 +23,15 @@ import { createPlayers, type PlayersView } from "../render/players";
 import type { Controls } from "../input/input";
 import type { Hud } from "../ui/hud";
 import { createDummyAI } from "./dummyAI";
+import { SKILL_INFO } from "../meta/catalog";
+
+/** Dev tool: `?fx` spawns one bot of each fighter so every skill can be seen. */
+const FX_MODE = import.meta.env.DEV && new URLSearchParams(location.search).has("fx");
+const SKILL_COOLDOWN: Record<string, number> = {
+  slam: CONFIG.SLAM_COOLDOWN_MS,
+  dash: CONFIG.DASH_COOLDOWN_MS,
+  shell: CONFIG.SHELL_COOLDOWN_MS,
+};
 
 const DUMMY_NAMES = ["Magma", "Pebble", "Cinder", "Basalt", "Ash", "Obsidian", "Sizzle", "Boulder"];
 const LOCAL_ID = "you";
@@ -36,10 +48,11 @@ export function startLocalGame(gs: GameScene, controls: Controls, hud: Hud, opts
   const names = [...DUMMY_NAMES].sort(() => Math.random() - 0.5);
   let state: MatchState = createMatch(seed, [
     { id: LOCAL_ID, nickname: opts.nickname, character: opts.character, isBot: false },
-    { id: "d1", nickname: names[0]!, character: opts.character, isBot: true },
-    { id: "d2", nickname: names[1]!, character: opts.character, isBot: true },
-    { id: "d3", nickname: names[2]!, character: opts.character, isBot: true },
+    { id: "d1", nickname: names[0]!, character: FX_MODE ? "elephant" : opts.character, isBot: true },
+    { id: "d2", nickname: names[1]!, character: FX_MODE ? "monkey" : opts.character, isBot: true },
+    { id: "d3", nickname: names[2]!, character: FX_MODE ? "turtle" : opts.character, isBot: true },
   ]);
+  const fxBots = FX_MODE ? ["d1", "d2", "d3"].map((id, i) => new BotController(id, "medium", seed + i)) : [];
   let prev = state;
   const ai = createDummyAI(seed ^ 0x9e3779b9);
   const players: PlayersView = createPlayers(state.players, LOCAL_ID);
@@ -137,13 +150,17 @@ export function startLocalGame(gs: GameScene, controls: Controls, hud: Hud, opts
       while (acc >= CONFIG.TICK_MS && steps < CONFIG.MAX_CATCHUP_STEPS) {
         const local = controls.read();
         seq++;
+        const botInputs = FX_MODE
+          ? Object.fromEntries(fxBots.map((b) => [b.playerId, b.input(state, seq)]))
+          : ai.inputs(state, ["d1", "d2", "d3"], seq);
         const inputs = {
-          ...ai.inputs(state, ["d1", "d2", "d3"], seq),
+          ...botInputs,
           [LOCAL_ID]: { seq, dirX: local.dirX, dirZ: local.dirZ, skill: local.skill },
         };
         prev = state;
         const r = step(state, inputs);
         state = r.state;
+        for (const ev of r.events) gs.skillFx.onEvent(ev, state);
         handleEvents(r.events);
         acc -= CONFIG.TICK_MS;
         steps++;
@@ -156,6 +173,16 @@ export function startLocalGame(gs: GameScene, controls: Controls, hud: Hud, opts
     const t = now / 1000;
     gs.arena.update(state.tiles, renderTimeMs, t);
     players.update(prev.players, state.players, alpha, t, dtSec, groundY);
+    gs.skillFx.update(state, renderTimeMs, dtSec);
+    const me = state.players.find((p) => p.id === LOCAL_ID)!;
+    if (me.alive) {
+      const sk = SKILL_OF[me.character];
+      const total = SKILL_COOLDOWN[sk]!;
+      const busy = me.skillPhase !== SkillPhase.NONE;
+      controls.setSkillState({ label: SKILL_INFO[sk].name, cooldownFrac: me.skillCooldownMs / total, ready: me.skillCooldownMs <= 0 && !busy });
+    } else {
+      controls.setSkillState({ label: "THROW", cooldownFrac: me.rockCooldownMs / CONFIG.ROCK_COOLDOWN_MS, ready: me.rockCooldownMs <= 0 });
+    }
     gs.updateLava(t);
     hud.update(state.players, state.timeMs, state.suddenDeath);
     gs.render(dtSec);

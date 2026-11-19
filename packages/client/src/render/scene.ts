@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { createArena, createCrater, type ArenaView } from "./arena";
 import { createLava } from "./lava";
 import { createFx } from "./fx";
+import { createSkillFx, type SkillFx } from "./skillFx";
 
 export interface GameScene {
   renderer: THREE.WebGLRenderer;
@@ -9,6 +10,7 @@ export interface GameScene {
   camera: THREE.PerspectiveCamera;
   arena: ArenaView;
   fx: ReturnType<typeof createFx>;
+  skillFx: SkillFx;
   updateLava(t: number): void;
   shake(amount: number): void;
   render(dt: number): void;
@@ -48,6 +50,7 @@ export function createScene(canvas: HTMLCanvasElement, tileCount: number): GameS
   const arena = createArena(tileCount);
   scene.add(arena.group);
   const fx = createFx(scene);
+  const skillFx = createSkillFx(scene);
 
   let shakeAmt = 0;
   const base = new THREE.Vector3();
@@ -75,6 +78,7 @@ export function createScene(canvas: HTMLCanvasElement, tileCount: number): GameS
     camera,
     arena,
     fx,
+    skillFx,
     updateLava: lava.update,
     shake(a) {
       shakeAmt = Math.max(shakeAmt, a);

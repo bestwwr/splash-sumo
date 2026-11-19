@@ -153,8 +153,21 @@ html, body {
   letter-spacing: 0.06em;
   pointer-events: auto;
   touch-action: none;
-  opacity: 0.5; /* skills arrive in Milestone 3 */
+  opacity: 0.5;
+  --cd: 0deg;
+  transition: opacity 0.12s;
 }
+/* Cooldown ring: dark sweep = time still remaining. */
+.skill-btn::before {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  background: conic-gradient(rgba(0, 0, 0, 0.6) var(--cd), transparent 0);
+  pointer-events: none;
+}
+.skill-btn .skill-label { position: relative; font-size: 12px; line-height: 1.1; padding: 0 6px; display: block; }
+.skill-btn.ready { opacity: 1; border-color: #ffd070; box-shadow: 0 0 14px rgba(255, 190, 90, 0.7); }
 .skill-btn.pressed { transform: scale(0.93); opacity: 0.8; }
 @media (pointer: fine) { .skill-btn, .joy-zone { display: none; } }
 

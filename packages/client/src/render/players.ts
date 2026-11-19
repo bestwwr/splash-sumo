@@ -1,8 +1,8 @@
 import * as THREE from "three";
-import { CONFIG, type Player } from "@lava-sumo/shared";
+import { CONFIG, SkillPhase, SKILL_OF, isDashing, isShelled, type CharacterId, type Player } from "@lava-sumo/shared";
 
-/** Slot colors (belt + outline). Paired with slot numbers in the HUD so color is never the only cue. */
-export const SLOT_COLORS = ["#ff4d4d", "#3fa7ff", "#5bd85b", "#ffd23f"] as const;
+import { buildFighter, SLOT_COLORS, type FighterModel } from "./fighters";
+export { SLOT_COLORS };
 
 function blobShadowTexture(): THREE.CanvasTexture {
   const c = document.createElement("canvas");
@@ -17,6 +17,7 @@ function blobShadowTexture(): THREE.CanvasTexture {
 }
 
 interface PlayerMesh {
+  fighter: FighterModel;
   root: THREE.Group;
   body: THREE.Group;
   shadow: THREE.Mesh;
@@ -25,36 +26,10 @@ interface PlayerMesh {
   squashDir: THREE.Vector2;
 }
 
-/**
- * Placeholder sumo: chubby body + belt in slot color + head with eyes (shows facing).
- * Replaced by low-poly animal models in Milestone 3/4.
- */
-function buildSumo(slot: number, isLocal: boolean, shadowTex: THREE.Texture): PlayerMesh {
-  const root = new THREE.Group();
-  const body = new THREE.Group();
-  root.add(body);
+function buildPlayerMesh(character: CharacterId, slot: number, isLocal: boolean, shadowTex: THREE.Texture): PlayerMesh {
+  const fighter = buildFighter(character, slot, { isLocal });
+  const { root, body } = fighter;
   const R = CONFIG.PLAYER_RADIUS;
-  const skin = new THREE.MeshStandardMaterial({ color: "#f2c9a0", roughness: 0.7, flatShading: true });
-  const beltMat = new THREE.MeshStandardMaterial({ color: SLOT_COLORS[slot % 4], roughness: 0.5, emissive: SLOT_COLORS[slot % 4], emissiveIntensity: 0.25 });
-  const dark = new THREE.MeshBasicMaterial({ color: "#1b1b1b" });
-
-  const torso = new THREE.Mesh(new THREE.IcosahedronGeometry(R, 1), skin);
-  torso.scale.set(1.05, 0.95, 1.05);
-  torso.position.y = R * 0.95;
-  const belt = new THREE.Mesh(new THREE.TorusGeometry(R * 0.93, R * 0.2, 6, 16), beltMat);
-  belt.rotation.x = Math.PI / 2;
-  belt.position.y = R * 0.7;
-  const head = new THREE.Mesh(new THREE.IcosahedronGeometry(R * 0.5, 1), skin);
-  head.position.set(0, R * 1.85, R * 0.05);
-  const topknot = new THREE.Mesh(new THREE.SphereGeometry(R * 0.17, 8, 6), dark);
-  topknot.position.set(0, R * 2.35, -R * 0.12);
-  const eyeGeo = new THREE.SphereGeometry(R * 0.08, 6, 4);
-  const eyeL = new THREE.Mesh(eyeGeo, dark);
-  const eyeR = new THREE.Mesh(eyeGeo, dark);
-  eyeL.position.set(-R * 0.18, R * 1.92, R * 0.48);
-  eyeR.position.set(R * 0.18, R * 1.92, R * 0.48);
-  body.add(torso, belt, head, topknot, eyeL, eyeR);
-
   const shadow = new THREE.Mesh(
     new THREE.PlaneGeometry(R * 2.6, R * 2.6),
     new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }),
@@ -62,7 +37,6 @@ function buildSumo(slot: number, isLocal: boolean, shadowTex: THREE.Texture): Pl
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = 0.02;
   root.add(shadow);
-
   let ring: THREE.Mesh | null = null;
   if (isLocal) {
     ring = new THREE.Mesh(
@@ -73,7 +47,7 @@ function buildSumo(slot: number, isLocal: boolean, shadowTex: THREE.Texture): Pl
     ring.position.y = 0.03;
     root.add(ring);
   }
-  return { root, body, shadow, ring, squashT: 0, squashDir: new THREE.Vector2() };
+  return { fighter, root, body, shadow, ring, squashT: 0, squashDir: new THREE.Vector2() };
 }
 
 export interface PlayersView {
@@ -89,7 +63,7 @@ export function createPlayers(players: Player[], localId: string): PlayersView {
   const shadowTex = blobShadowTexture();
   const meshes = new Map<string, PlayerMesh>();
   for (const p of players) {
-    const m = buildSumo(p.slot, p.id === localId, shadowTex);
+    const m = buildPlayerMesh(p.character, p.slot, p.id === localId, shadowTex);
     meshes.set(p.id, m);
     group.add(m.root);
   }
@@ -120,7 +94,7 @@ export function createPlayers(players: Player[], localId: string): PlayersView {
         m.root.position.y = ground - f * f * 1.4;
         const s = Math.max(0, 1 - f * 0.6);
         m.body.scale.setScalar(s);
-        m.body.rotation.z = Math.sin(frameSec * 30) * 0.3 * f;
+        m.fighter.setPose("fall", frameSec);
         m.shadow.visible = false;
         if (m.ring) m.ring.visible = p.alive;
         m.root.visible = p.alive || f < 1;
@@ -134,8 +108,12 @@ export function createPlayers(players: Player[], localId: string): PlayersView {
 
       // Waddle while moving.
       const waddle = Math.min(1, speed / 4);
-      m.body.position.y = Math.abs(Math.sin(frameSec * 14)) * 0.06 * waddle;
-      m.body.rotation.x = 0.12 * waddle;
+      const skill = SKILL_OF[p.character];
+      if (p.skillPhase === SkillPhase.WINDUP && skill === "slam") {
+        m.fighter.setPose("windup", 1 - p.skillPhaseMs / CONFIG.SLAM_WINDUP_MS);
+      } else if (isDashing(p)) m.fighter.setPose("dash", frameSec);
+      else if (isShelled(p)) m.fighter.setPose("shell", frameSec);
+      else m.fighter.setPose(waddle > 0.1 ? "walk" : "idle", frameSec);
 
       // Squash & stretch on impact.
       let sx = 1, sy = 1;
