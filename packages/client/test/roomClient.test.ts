@@ -1,5 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { CONFIG } from "@lava-sumo/shared";
 import { checkRoom, connectRoom, createRoom, playerToken, serverUrl } from "../src/net/roomClient";
 
 class FakeWS {
@@ -63,6 +64,31 @@ describe("checkRoom / createRoom", () => {
     expect(await checkRoom("ABCD")).toBe("IN_PROGRESS");
     vi.stubGlobal("fetch", vi.fn(async () => { throw new Error("net"); }));
     expect(await checkRoom("ABCD")).toBe("DOWN");
+  });
+
+  it("M4: a hung fetch times out after NET_HTTP_TIMEOUT_MS (checkRoom -> DOWN, createRoom rejects)", async () => {
+    vi.useFakeTimers();
+    try {
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(
+          (_u: string, init: { signal: AbortSignal }) =>
+            new Promise((_res, rej) => init.signal.addEventListener("abort", () => rej(new Error("aborted")))),
+        ),
+      );
+      const check = checkRoom("ABCD");
+      const create = createRoom().catch((e: Error) => e.message);
+      await vi.advanceTimersByTimeAsync(CONFIG.NET_HTTP_TIMEOUT_MS - 1);
+      let settled = false;
+      void check.then(() => (settled = true));
+      await Promise.resolve();
+      expect(settled).toBe(false);
+      await vi.advanceTimersByTimeAsync(1);
+      expect(await check).toBe("DOWN");
+      expect(await create).toBe("aborted");
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("createRoom returns the code", async () => {
@@ -133,6 +159,24 @@ describe("connectRoom", () => {
     const n = FakeWS.instances.length;
     vi.advanceTimersByTime(30000);
     expect(FakeWS.instances.length).toBe(n);
+  });
+
+  it("M4: a socket that never opens is closed after NET_CONNECT_TIMEOUT_MS and goes through reconnect", () => {
+    const onState = vi.fn();
+    connectRoom("ABCD", JOIN, { onMsg: vi.fn(), onState });
+    const ws = FakeWS.instances[0]!;
+    vi.advanceTimersByTime(CONFIG.NET_CONNECT_TIMEOUT_MS - 1);
+    expect(onState).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(ws.readyState).toBe(3);
+    expect(onState).toHaveBeenLastCalledWith("reconnecting");
+    vi.advanceTimersByTime(500);
+    expect(FakeWS.instances.length).toBe(2);
+    // an opened socket is not killed by the connect timer
+    FakeWS.instances[1]!.open();
+    vi.advanceTimersByTime(CONFIG.NET_CONNECT_TIMEOUT_MS * 2);
+    expect(FakeWS.instances[1]!.readyState).toBe(1);
+    expect(onState).toHaveBeenLastCalledWith("open");
   });
 
   it("does not reconnect after a terminal error or close()", () => {

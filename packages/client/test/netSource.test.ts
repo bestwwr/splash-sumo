@@ -133,4 +133,45 @@ describe("NetSource", () => {
     src.advance(16, { dirX: 1, dirZ: 0, skill: false });
     expect(sent[0]).toMatchObject({ t: "in", seq: 1, dirX: 1 });
   });
+
+  it("M5: the snapshot buffer stays ~1 s deep while no frames run (hidden tab)", () => {
+    const { src } = make();
+    for (let i = 0; i <= 200; i++) src.onSnap(snapAt(i), i * 50);
+    const buf = (src as unknown as { buf: unknown[] }).buf;
+    expect(buf.length).toBeLessThanOrEqual(23);
+    expect(buf.length).toBeGreaterThan(15);
+  });
+
+  it("M5: a hard resync forward drops stale events but still releases matchEnd", () => {
+    const { src } = make();
+    const shrink = { type: "edgeShrink", ring: 1 } as unknown as SimEvent;
+    const end = { type: "matchEnd", result: { winnerId: "a", placements: [] } } as unknown as SimEvent;
+    for (let i = 0; i <= 4; i++) src.onSnap(snapAt(i), i * 50);
+    src.advance(0, ZERO);
+    for (let i = 5; i <= 100; i++) src.onSnap(snapAt(i, { events: i === 10 ? [shrink, end] : [shrink] }), i * 50);
+    const got = src.advance(16, ZERO); // renderT jumps to ~4900
+    // only matchEnd (snap 10) plus whatever is at/after the new render time (snap ~98); not 90 stale batches
+    expect(got.length).toBeLessThanOrEqual(2);
+    expect(got[0]!.events.map((e) => e.type)).toEqual(["matchEnd"]);
+    expect(got[0]!.state.tick).toBe(10);
+    for (const g of got.slice(1)) expect(g.state.tick).toBeGreaterThanOrEqual(98);
+    // events newer than the new render time still arrive normally
+    const later: string[] = [];
+    for (let k = 0; k < 20; k++) later.push(...src.advance(16, ZERO).flatMap((g) => g.events.map((e) => e.type)));
+    expect(later.every((t) => t === "edgeShrink")).toBe(true);
+  });
+
+  it("I5: no keep-alive while the latest snap is RESULTS; keep-alive while PLAYING", () => {
+    const { src, sent, at } = make();
+    src.onSnap(snapAt(1, { phase: Phase.PLAYING }), 0);
+    at(1500);
+    src.advance(16, ZERO);
+    expect(sent).toHaveLength(1);
+    src.onSnap(snapAt(2, { phase: Phase.RESULTS }), 1500);
+    for (let t = 2000; t <= 9000; t += 500) {
+      at(t);
+      src.advance(16, ZERO);
+    }
+    expect(sent).toHaveLength(1);
+  });
 });

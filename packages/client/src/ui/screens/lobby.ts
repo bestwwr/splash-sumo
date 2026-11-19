@@ -1,4 +1,4 @@
-import { CHARACTER_IDS, type BotDifficulty, type CharacterId, type ClientMsg, type ServerMsg } from "@lava-sumo/shared";
+import { CHARACTER_IDS, Phase, type BotDifficulty, type CharacterId, type ClientMsg, type ServerMsg } from "@lava-sumo/shared";
 import { FIGHTER_EMOJI } from "../../meta/catalog";
 
 type LobbyMsg = Extract<ServerMsg, { t: "lobby" }>;
@@ -22,6 +22,7 @@ const DIFFS: ReadonlyArray<{ id: BotDifficulty; label: string }> = [
   { id: "medium", label: "Medium" },
   { id: "hard", label: "Hard" },
 ];
+const FINISHING = "Match finishing…";
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
 export function createLobbyScreen(root: HTMLElement, deps: LobbyDeps): LobbyScreen {
@@ -56,9 +57,13 @@ export function createLobbyScreen(root: HTMLElement, deps: LobbyDeps): LobbyScre
   function update(lobby: LobbyMsg, you: string, c: string) {
     code = c;
     q(".lobby-code").textContent = c;
-    const isHost = lobby.hostId === you;
+    // A match is still wrapping up (we joined during RESULTS): no controls until the lobby phase.
+    const finishing = lobby.phase !== Phase.LOBBY;
+    const isHost = lobby.hostId === you && !finishing;
     hostRow.classList.toggle("hidden", !isHost);
     wait.classList.toggle("hidden", isHost);
+    if (finishing) note.textContent = FINISHING;
+    else if (note.textContent === FINISHING) note.textContent = "";
 
     slots.innerHTML = "";
     for (let i = 0; i < 4; i++) {

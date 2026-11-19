@@ -19,8 +19,8 @@ export class InputSender {
     this.lastKeepAliveAt = nowMs();
   }
 
-  /** Call every frame with the current input. */
-  update(input: InputState): void {
+  /** Call every frame with the current input. `keepAlive` is false outside COUNTDOWN/PLAYING. */
+  update(input: InputState, keepAlive = true): void {
     const now = this.nowMs();
     const cur: InputState = { dirX: q2(input.dirX), dirZ: q2(input.dirZ), skill: input.skill };
     const o = this.observed;
@@ -35,9 +35,17 @@ export class InputSender {
     }
     if (this.queue.length > 0) {
       if (now - this.lastSendAt >= MIN_INTERVAL_MS) this.emit(this.queue.shift()!, now);
-    } else if (this.observed && now - this.lastKeepAliveAt >= CONFIG.NET_INPUT_KEEPALIVE_MS) {
+    } else if (keepAlive && this.observed && now - this.lastKeepAliveAt >= CONFIG.NET_INPUT_KEEPALIVE_MS) {
       this.emit(this.observed, now);
     }
+  }
+
+  /** Send a neutral (zero) input right now (e.g. tab hidden), keeping seq monotonic and dropping queued moves. */
+  sendNeutral(): void {
+    const zero: InputState = { dirX: 0, dirZ: 0, skill: false };
+    this.queue = [];
+    this.observed = zero;
+    this.emit(zero, this.nowMs());
   }
 
   /** Call on reconnect: the server resets its processed seq to 0. */

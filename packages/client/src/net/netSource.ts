@@ -17,6 +17,8 @@ import type { InputState } from "../input/input";
 import type { MatchSource, SourceEvents } from "../game/matchSource";
 import { InputSender } from "./inputSender";
 
+const BUF_KEEP_MS = 1000;
+
 interface Entry {
   t: number; // server match time
   tick: number;
@@ -41,7 +43,18 @@ export class NetSource implements MatchSource {
     this.latest = createMatch(start.seed, start.setups);
     this.sender = new InputSender(send, nowMs);
     this.startRecvMs = nowMs();
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", this.onVisibility);
   }
+
+  private activePhase(): boolean {
+    const p = this.latest.phase;
+    return p === Phase.COUNTDOWN || p === Phase.PLAYING;
+  }
+
+  /** Hidden tabs stop rendering (and so sending): tell the server to stop steering right away. */
+  private readonly onVisibility = (): void => {
+    if (document.visibilityState === "hidden" && this.activePhase()) this.sender.sendNeutral();
+  };
 
   /** Call after a reconnect (server resets its processed input seq). */
   resetInput(): void {
@@ -58,17 +71,23 @@ export class NetSource implements MatchSource {
     this.buf.push({ t, tick: s.tick, state });
     if (s.events.length > 0) this.pending.push({ t, events: s.events, state });
     if (first) this.renderT = t - CONFIG.NET_INTERP_DELAY_MS;
+    // While the tab is hidden advance() stops running: keep only ~1 s of history behind the newest snap.
+    while (this.buf.length > 2 && this.buf[1]!.t < t - BUF_KEEP_MS) this.buf.shift();
+    this.dropStaleEvents(t - BUF_KEEP_MS);
   }
 
   advance(frameMs: number, input: InputState): SourceEvents[] {
-    this.sender.update(input);
+    this.sender.update(input, this.activePhase());
     const newest = this.buf[this.buf.length - 1];
     if (!newest) return [];
     const target = newest.t - CONFIG.NET_INTERP_DELAY_MS;
     this.renderT += frameMs;
     const drift = target - this.renderT;
-    if (Math.abs(drift) > CONFIG.NET_HARD_RESYNC_MS) this.renderT = target;
-    else {
+    if (Math.abs(drift) > CONFIG.NET_HARD_RESYNC_MS) {
+      this.renderT = target;
+      // Jumped forward (e.g. back from a hidden tab): don't replay a burst of old banners/shakes.
+      if (drift > 0) this.dropStaleEvents(Math.min(target, newest.t));
+    } else {
       const lim = frameMs * CONFIG.NET_RESYNC_FRAC;
       this.renderT += Math.max(-lim, Math.min(lim, drift));
     }
@@ -85,6 +104,15 @@ export class NetSource implements MatchSource {
     // Drop entries that can no longer be straddled (keep one at or before render time).
     while (this.buf.length > 2 && this.buf[1]!.t <= this.renderT) this.buf.shift();
     return out;
+  }
+
+  /** Drop pending event batches older than `t`, except matchEnd (results must still show). */
+  private dropStaleEvents(t: number): void {
+    this.pending = this.pending.flatMap((p) => {
+      if (p.t >= t) return [p];
+      const keep = p.events.filter((e) => e.type === "matchEnd");
+      return keep.length > 0 ? [{ ...p, events: keep }] : [];
+    });
   }
 
   frame(): { prev: MatchState; cur: MatchState; alpha: number; renderTimeMs: number } {
@@ -112,5 +140,7 @@ export class NetSource implements MatchSource {
     return left > 0 ? Math.ceil(left / 1000) : null;
   }
 
-  dispose(): void {}
+  dispose(): void {
+    if (typeof document !== "undefined") document.removeEventListener("visibilitychange", this.onVisibility);
+  }
 }

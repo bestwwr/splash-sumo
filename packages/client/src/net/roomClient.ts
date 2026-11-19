@@ -1,5 +1,5 @@
 /** Online room client: REST helpers + a WebSocket that auto-reconnects and re-sends `join`. */
-import { PROTOCOL_VERSION, type CharacterId, type ClientMsg, type ServerMsg } from "@lava-sumo/shared";
+import { CONFIG, PROTOCOL_VERSION, type CharacterId, type ClientMsg, type ServerMsg } from "@lava-sumo/shared";
 
 export function serverUrl(
   env: string | undefined = import.meta.env.VITE_SERVER_URL,
@@ -30,8 +30,19 @@ export function playerToken(): string {
   }
 }
 
+/** fetch with a timeout that also works under fake timers (AbortSignal.timeout does not). */
+async function fetchTimeout(url: string, init: RequestInit = {}): Promise<Response> {
+  const ac = new AbortController();
+  const timer = setTimeout(() => ac.abort(), CONFIG.NET_HTTP_TIMEOUT_MS);
+  try {
+    return await fetch(url, { ...init, signal: ac.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 export async function createRoom(): Promise<string> {
-  const res = await fetch(`${serverUrl().http}/rooms`, { method: "POST" });
+  const res = await fetchTimeout(`${serverUrl().http}/rooms`, { method: "POST" });
   if (!res.ok) throw new Error(`createRoom ${res.status}`);
   const body = (await res.json()) as { code?: unknown };
   if (typeof body.code !== "string") throw new Error("createRoom: bad body");
@@ -42,7 +53,7 @@ export type RoomCheck = "ok" | "NOT_FOUND" | "FULL" | "IN_PROGRESS" | "DOWN";
 
 export async function checkRoom(code: string): Promise<RoomCheck> {
   try {
-    const res = await fetch(`${serverUrl().http}/rooms/${encodeURIComponent(code)}`);
+    const res = await fetchTimeout(`${serverUrl().http}/rooms/${encodeURIComponent(code)}`);
     if (res.status === 200) return "ok";
     if (res.status === 404) return "NOT_FOUND";
     if (res.status === 409) {
@@ -87,8 +98,20 @@ export function connectRoom(code: string, join: JoinInfo, handlers: RoomHandlers
   function open() {
     const sock = new WebSocket(url);
     ws = sock;
+    let done = false;
+    // A socket that never opens would otherwise hang the UI: treat it like any other drop.
+    const connectTimer = setTimeout(() => {
+      if (ws !== sock || sock.readyState === 1) return;
+      try {
+        sock.close();
+      } catch {
+        /* already closed */
+      }
+      onDown();
+    }, CONFIG.NET_CONNECT_TIMEOUT_MS);
     sock.onopen = () => {
       if (ws !== sock) return;
+      clearTimeout(connectTimer);
       attempt = 0;
       deadline = 0;
       sock.send(JSON.stringify({ t: "join", ...join }));
@@ -105,7 +128,11 @@ export function connectRoom(code: string, join: JoinInfo, handlers: RoomHandlers
       if (m.t === "error" && TERMINAL.has(m.code)) terminal = true;
       handlers.onMsg(m);
     };
-    sock.onclose = () => {
+    sock.onclose = () => onDown();
+    function onDown() {
+      clearTimeout(connectTimer);
+      if (done) return;
+      done = true;
       if (ws !== sock || closed || terminal) return;
       if (deadline === 0) deadline = Date.now() + GIVE_UP_MS;
       const left = deadline - Date.now();
@@ -117,7 +144,7 @@ export function connectRoom(code: string, join: JoinInfo, handlers: RoomHandlers
       const delay = Math.min(BACKOFF_MS[Math.min(attempt, BACKOFF_MS.length - 1)]!, left);
       attempt++;
       timer = setTimeout(open, delay);
-    };
+    }
   }
   open();
 

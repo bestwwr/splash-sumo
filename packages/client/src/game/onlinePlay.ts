@@ -148,6 +148,16 @@ export function createOnlineFlow(deps: OnlineDeps) {
             lobby.show();
           }
           lobby.update(m, you, code);
+        } else if (m.phase === Phase.RESULTS && !view) {
+          // Joined (or rejoined without being in the match) while results are up: show the lobby with a
+          // "Match finishing…" note until the room returns to LOBBY.
+          if (!hadLobby) {
+            hadLobby = true;
+            friends.hide();
+            deps.setIdle(true);
+            lobby.show();
+          }
+          lobby.update(m, you, code);
         }
         break;
       case "start":

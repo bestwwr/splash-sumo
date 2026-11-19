@@ -165,4 +165,32 @@ describe("online flow", () => {
     await t.tick();
     expect(t.conns.length).toBe(0);
   });
+
+  it("I2: a lobby with phase RESULTS and no match view shows the lobby with a finishing note, then goes normal", async () => {
+    const t = setup();
+    t.flow.openFriends();
+    t.typeJoin("ABCD");
+    await t.tick();
+    const h = t.conns[0]!.handlers;
+    h.onMsg({ t: "welcome", you: "me", code: "ABCD" });
+    h.onMsg(lobbyMsg(Phase.RESULTS));
+    expect(t.hidden(".lobby-screen")).toBe(false);
+    expect(t.hidden(".friends-screen")).toBe(true);
+    expect(t.el(".lobby-note").textContent).toBe("Match finishing…");
+    expect(t.hidden(".lobby-host")).toBe(true);
+    expect(t.sources.length).toBe(0);
+    h.onMsg(lobbyMsg(Phase.LOBBY));
+    expect(t.hidden(".lobby-screen")).toBe(false);
+    expect(t.el(".lobby-note").textContent).toBe("");
+    expect(t.hidden(".lobby-host")).toBe(false);
+  });
+
+  it("I2: a RESULTS lobby while a match view runs does not disturb it", async () => {
+    const t = setup();
+    const h = await toLobby(t);
+    h.onMsg(START);
+    h.onMsg(lobbyMsg(Phase.RESULTS));
+    expect(t.views[0]!.stop).not.toHaveBeenCalled();
+    expect(t.hidden(".lobby-screen")).toBe(true);
+  });
 });

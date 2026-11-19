@@ -3,7 +3,7 @@
  * Free of networking and sim timing; sources own both.
  */
 import * as THREE from "three";
-import { CONFIG, SKILL_OF, SkillPhase, cooldownOf, hexKey, worldToHex, type MatchResult, type MatchState, type SimEvent } from "@lava-sumo/shared";
+import { CONFIG, Phase, SKILL_OF, SkillPhase, cooldownOf, hexKey, worldToHex, type MatchResult, type MatchState, type SimEvent } from "@lava-sumo/shared";
 import type { GameScene } from "../render/scene";
 import { createPlayers, type PlayersView } from "../render/players";
 import type { Controls } from "../input/input";
@@ -39,8 +39,20 @@ export function runMatchView(gs: GameScene, controls: Controls, hud: Hud, source
   let lastShown: number | string | null = null;
   let running = true;
   let raf = 0;
+  let resultsScheduled = false;
   const frameTimes: number[] = [];
   let fpsTimer = 0;
+
+  /** Show the results screen once (a matchEnd event and the RESULTS-phase fallback can both ask). */
+  function scheduleResults(result: MatchResult, st: MatchState, delayMs: number) {
+    if (resultsScheduled) return;
+    resultsScheduled = true;
+    controls.setEnabled(false);
+    window.setTimeout(() => {
+      if (!running) return;
+      hud.showResults(result, st.players, localId, opts.actions, opts.subtitle(result));
+    }, delayMs);
+  }
 
   function handleEvents(events: SimEvent[], state: MatchState) {
     for (const e of events) {
@@ -80,11 +92,7 @@ export function runMatchView(gs: GameScene, controls: Controls, hud: Hud, source
           gs.shake(0.3);
           break;
         case "matchEnd":
-          controls.setEnabled(false);
-          window.setTimeout(() => {
-            if (!running) return;
-            hud.showResults(e.result, state.players, localId, opts.actions, opts.subtitle(e.result));
-          }, 1100);
+          scheduleResults(e.result, state, 1100);
           break;
         case "fall":
           break;
@@ -108,6 +116,9 @@ export function runMatchView(gs: GameScene, controls: Controls, hud: Hud, source
       handleEvents(batch.events, batch.state);
     }
 
+    // Rejoined into a finished match: no matchEnd event will ever arrive, so go by the state itself.
+    if (!resultsScheduled && state.phase === Phase.RESULTS && state.result) scheduleResults(state.result, state, 0);
+
     const n = source.countdown();
     if (n !== lastShown) {
       hud.countdown(n);
@@ -118,8 +129,11 @@ export function runMatchView(gs: GameScene, controls: Controls, hud: Hud, source
     gs.arena.update(state.tiles, f.renderTimeMs, t);
     players.update(f.prev.players, state.players, f.alpha, t, dtSec, groundY);
     gs.skillFx.update(state, f.renderTimeMs, dtSec);
-    const me = state.players.find((p) => p.id === localId)!;
-    if (me.alive) {
+    const me = state.players.find((p) => p.id === localId);
+    if (!me) {
+      // Not a participant (spectating): no skill button.
+      controls.setEnabled(false);
+    } else if (me.alive) {
       const sk = SKILL_OF[me.character];
       const total = cooldownOf(sk);
       const busy = me.skillPhase !== SkillPhase.NONE;
