@@ -9,6 +9,9 @@ import { createSplashScreen } from "./ui/screens/splash";
 import { createHomeScreen } from "./ui/screens/home";
 import { createInventoryScreen } from "./ui/screens/inventory";
 import { createSetupScreen } from "./ui/screens/setup";
+import { createOnlineFlow } from "./game/onlinePlay";
+import { mountEnvBadge } from "./ui/toast";
+import { normalizeRoomCode } from "@lava-sumo/shared";
 
 const ID_KEY = "lavasumo.anonId";
 
@@ -86,6 +89,31 @@ const home = createHomeScreen(ui, {
     homeActive = false;
     inventory.show();
   },
+  onFriends: () => {
+    home.hide();
+    homeActive = false;
+    online.openFriends();
+  },
+});
+const online = createOnlineFlow({
+  root: ui,
+  gs,
+  controls,
+  hud,
+  getProfile: () => profile,
+  setProfile: (p) => {
+    profile = p;
+    saveProfile(profileStore, p);
+  },
+  setIdle: (active) => {
+    idleActive = active;
+    homeActive = false;
+  },
+  onHome: () => {
+    idleActive = true;
+    homeActive = true;
+    home.show();
+  },
 });
 const inventory = createInventoryScreen(ui, {
   getProfile: () => profile,
@@ -115,13 +143,28 @@ const setup = createSetupScreen(ui, {
     startMatch();
   },
 });
+// ?room=ABCD deep link: consumed once, then removed from the address bar.
+const linkedRoom = normalizeRoomCode(new URLSearchParams(location.search).get("room") ?? "");
+if (new URLSearchParams(location.search).has("room")) {
+  try {
+    history.replaceState(null, "", location.pathname + location.hash);
+  } catch {
+    /* ignore */
+  }
+}
 const splash = createSplashScreen(ui, {
   onContinue: () => {
     splash.hide();
+    if (linkedRoom) {
+      idleActive = true;
+      online.joinCode(linkedRoom);
+      return;
+    }
     home.show();
     homeActive = true;
   },
 });
+mountEnvBadge(document.body);
 splash.show();
 
 // --- Portrait prompt (A.7) ---
