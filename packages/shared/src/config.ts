@@ -170,6 +170,17 @@ const BASE = {
       threat: 4, threatLead: 1, wander: 0, inertia: 0.25, skillSmart: 2, speed: 1,
     },
   },
+
+  // --- Online multiplayer (net) ---
+  NET_SNAP_MS: 50,
+  NET_INTERP_DELAY_MS: 100,
+  NET_COUNTDOWN_MS: 3000,
+  NET_RECONNECT_MS: 15_000,
+  NET_EMPTY_ROOM_MS: 30_000,
+  NET_MAX_HUMANS: 4,
+  NET_INPUT_MAX_PER_SEC: 15,
+  NET_INPUT_KEEPALIVE_MS: 1000,
+  NET_ABUSE_KICK_MS: 5000,
 } as const;
 
 /**

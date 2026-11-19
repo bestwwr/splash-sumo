@@ -1,4 +1,4 @@
-import { CHARACTER_IDS, type BotDifficulty, type CharacterId } from "@lava-sumo/shared";
+import { CHARACTER_IDS, sanitizeNickname as sanitizeNicknameShared, type BotDifficulty, type CharacterId } from "@lava-sumo/shared";
 import { ARENAS, CATALOG, DEFAULT_ARENA, type CatalogItem } from "./catalog";
 
 export interface KeyValueStorage {
@@ -21,8 +21,7 @@ const LEGACY_NICK_KEY = "lavasumo.nickname";
 const DIFFICULTIES: readonly BotDifficulty[] = ["easy", "medium", "hard"];
 
 export function sanitizeNickname(raw: string, randomNick: () => string = defaultRandomNick): string {
-  const clean = raw.replace(/[^\p{L}\p{N} _.-]/gu, "").trim().slice(0, 12);
-  return clean || randomNick();
+  return sanitizeNicknameShared(raw, randomNick);
 }
 
 export function defaultRandomNick(): string {
