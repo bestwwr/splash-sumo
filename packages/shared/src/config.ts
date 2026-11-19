@@ -181,6 +181,12 @@ const BASE = {
   NET_INPUT_MAX_PER_SEC: 15,
   NET_INPUT_KEEPALIVE_MS: 1000,
   NET_ABUSE_KICK_MS: 5000,
+  NET_RESYNC_FRAC: 0.1,
+  NET_HARD_RESYNC_MS: 250,
+  NET_INPUT_MAX_QUEUE: 4,
+  // --- Client match presentation ---
+  GO_DISPLAY_MS: 600,
+  SOLO_COUNTDOWN_MS: 3000,
 } as const;
 
 /**

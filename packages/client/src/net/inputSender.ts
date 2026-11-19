@@ -3,7 +3,6 @@ import { CONFIG, type ClientMsg } from "@lava-sumo/shared";
 import type { InputState } from "../input/input";
 
 const MIN_INTERVAL_MS = 1000 / CONFIG.NET_INPUT_MAX_PER_SEC;
-const MAX_QUEUE = 4;
 const q2 = (n: number) => Math.round(n * 100) / 100;
 
 export class InputSender {
@@ -30,7 +29,7 @@ export class InputSender {
       const last = this.queue[this.queue.length - 1];
       const skillOfLast = last ? last.skill : o?.skill;
       if (last && skillOfLast === cur.skill) this.queue[this.queue.length - 1] = cur;
-      else if (this.queue.length >= MAX_QUEUE) this.queue[this.queue.length - 1] = cur;
+      else if (this.queue.length >= CONFIG.NET_INPUT_MAX_QUEUE) this.queue[this.queue.length - 1] = cur;
       else this.queue.push(cur);
       this.observed = cur;
     }

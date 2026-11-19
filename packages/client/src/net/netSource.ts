@@ -14,7 +14,7 @@ import {
   type StartMsg,
 } from "@lava-sumo/shared";
 import type { InputState } from "../input/input";
-import type { MatchSource } from "../game/matchSource";
+import type { MatchSource, SourceEvents } from "../game/matchSource";
 import { InputSender } from "./inputSender";
 
 interface Entry {
@@ -23,13 +23,9 @@ interface Entry {
   state: MatchState;
 }
 
-const GO_MS = 600;
-const RESYNC_FRAC = 0.1;
-const HARD_RESYNC_MS = 250;
-
 export class NetSource implements MatchSource {
   private readonly buf: Entry[] = [];
-  private pending: Array<{ t: number; events: SimEvent[] }> = [];
+  private pending: Array<{ t: number; events: SimEvent[]; state: MatchState }> = [];
   private readonly sender: InputSender;
   private readonly startRecvMs: number;
   private renderT = 0;
@@ -60,26 +56,29 @@ export class NetSource implements MatchSource {
     const t = newest ? Math.max(s.timeMs, newest.t) : s.timeMs;
     const first = this.buf.length === 0;
     this.buf.push({ t, tick: s.tick, state });
-    if (s.events.length > 0) this.pending.push({ t, events: s.events });
+    if (s.events.length > 0) this.pending.push({ t, events: s.events, state });
     if (first) this.renderT = t - CONFIG.NET_INTERP_DELAY_MS;
   }
 
-  advance(frameMs: number, input: InputState): SimEvent[] {
+  advance(frameMs: number, input: InputState): SourceEvents[] {
     this.sender.update(input);
     const newest = this.buf[this.buf.length - 1];
     if (!newest) return [];
     const target = newest.t - CONFIG.NET_INTERP_DELAY_MS;
     this.renderT += frameMs;
     const drift = target - this.renderT;
-    if (Math.abs(drift) > HARD_RESYNC_MS) this.renderT = target;
+    if (Math.abs(drift) > CONFIG.NET_HARD_RESYNC_MS) this.renderT = target;
     else {
-      const lim = frameMs * RESYNC_FRAC;
+      const lim = frameMs * CONFIG.NET_RESYNC_FRAC;
       this.renderT += Math.max(-lim, Math.min(lim, drift));
     }
     this.renderT = Math.min(this.renderT, newest.t); // never extrapolate
 
-    const out: SimEvent[] = [];
-    while (this.pending.length > 0 && this.pending[0]!.t <= this.renderT) out.push(...this.pending.shift()!.events);
+    const out: SourceEvents[] = [];
+    while (this.pending.length > 0 && this.pending[0]!.t <= this.renderT) {
+      const p = this.pending.shift()!;
+      out.push({ events: p.events, state: p.state });
+    }
 
     const f = this.frame();
     if (this.goAt === null && this.start.countdownMs > 0 && f.cur.phase === Phase.PLAYING) this.goAt = this.nowMs();
@@ -108,7 +107,7 @@ export class NetSource implements MatchSource {
   }
 
   countdown(): number | "GO!" | null {
-    if (this.goAt !== null) return this.nowMs() - this.goAt < GO_MS ? "GO!" : null;
+    if (this.goAt !== null) return this.nowMs() - this.goAt < CONFIG.GO_DISPLAY_MS ? "GO!" : null;
     const left = this.start.countdownMs - (this.nowMs() - this.startRecvMs);
     return left > 0 ? Math.ceil(left / 1000) : null;
   }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
-  CONFIG, Phase, createMatch, encodeSnap, step,
+  Phase, createMatch, encodeSnap,
   type ClientMsg, type MatchState, type PlayerSetup, type SimEvent, type Snap, type StartMsg,
 } from "@lava-sumo/shared";
 import { NetSource } from "../src/net/netSource";
@@ -27,8 +27,6 @@ function make() {
   return { src, sent, at: (t: number) => (now = t) };
 }
 
-const x0 = (s: NetSource) => s.frame();
-
 describe("NetSource", () => {
   it("interpolates between the snaps straddling render time", () => {
     const { src, at } = make();
@@ -51,14 +49,13 @@ describe("NetSource", () => {
   });
 
   it("alpha is correct inside a snap interval", () => {
-    const { src, at } = make();
+    const { src } = make();
     for (let i = 0; i <= 6; i++) src.onSnap(snapAt(i), i * 50);
     src.advance(0, ZERO);
     // render at 200 exactly = snap 4 -> next 25 ms
     src.advance(12.5, ZERO);
     const f = src.frame();
     expect(f.alpha).toBeCloseTo(((f.renderTimeMs - 200) % 50) / 50, 1);
-    at(0);
   });
 
   it("ignores an out-of-order snap", () => {
@@ -89,13 +86,15 @@ describe("NetSource", () => {
     const { src } = make();
     const ev: SimEvent = { type: "edgeShrink", ring: 3 } as unknown as SimEvent;
     for (let i = 0; i <= 3; i++) src.onSnap(snapAt(i, { events: i === 3 ? [ev] : [] }), i * 50);
-    const got: SimEvent[] = [];
+    const got: Array<{ events: SimEvent[]; state: MatchState }> = [];
     got.push(...src.advance(0, ZERO)); // render = 150-100 = 50
     expect(got).toHaveLength(0);
     got.push(...src.advance(50, ZERO)); // render 100
     expect(got).toHaveLength(0);
     for (let k = 0; k < 20; k++) got.push(...src.advance(16, ZERO));
-    expect(got).toEqual([ev]);
+    expect(got).toHaveLength(1);
+    expect(got[0]!.events).toEqual([ev]);
+    expect(got[0]!.state.tick).toBe(3); // paired with the snap that carried it
     for (let k = 0; k < 20; k++) got.push(...src.advance(16, ZERO));
     expect(got).toHaveLength(1);
   });
@@ -114,7 +113,6 @@ describe("NetSource", () => {
 
   it("countdown follows start.countdownMs, then GO! once PLAYING renders, then null", () => {
     const { src, at } = make();
-    at(0);
     expect(src.countdown()).toBe(3);
     at(1100);
     expect(src.countdown()).toBe(2);
@@ -136,4 +134,3 @@ describe("NetSource", () => {
     expect(sent[0]).toMatchObject({ t: "in", seq: 1, dirX: 1 });
   });
 });
-void step; void CONFIG; void x0;

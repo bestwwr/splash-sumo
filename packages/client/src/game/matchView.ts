@@ -3,7 +3,7 @@
  * Free of networking and sim timing; sources own both.
  */
 import * as THREE from "three";
-import { CONFIG, SKILL_OF, SkillPhase, cooldownOf, hexKey, worldToHex, type MatchResult, type SimEvent } from "@lava-sumo/shared";
+import { CONFIG, SKILL_OF, SkillPhase, cooldownOf, hexKey, worldToHex, type MatchResult, type MatchState, type SimEvent } from "@lava-sumo/shared";
 import type { GameScene } from "../render/scene";
 import { createPlayers, type PlayersView } from "../render/players";
 import type { Controls } from "../input/input";
@@ -42,7 +42,7 @@ export function runMatchView(gs: GameScene, controls: Controls, hud: Hud, source
   const frameTimes: number[] = [];
   let fpsTimer = 0;
 
-  function handleEvents(events: SimEvent[]) {
+  function handleEvents(events: SimEvent[], state: MatchState) {
     for (const e of events) {
       switch (e.type) {
         case "hit": {
@@ -103,8 +103,10 @@ export function runMatchView(gs: GameScene, controls: Controls, hud: Hud, source
     const events = source.advance(dtMs, controls.read());
     const f = source.frame();
     state = f.cur;
-    for (const ev of events) gs.skillFx.onEvent(ev, state);
-    handleEvents(events);
+    for (const batch of events) {
+      for (const ev of batch.events) gs.skillFx.onEvent(ev, batch.state);
+      handleEvents(batch.events, batch.state);
+    }
 
     const n = source.countdown();
     if (n !== lastShown) {

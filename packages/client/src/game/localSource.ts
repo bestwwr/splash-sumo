@@ -8,26 +8,23 @@ import {
   step,
   type MatchState,
   type PlayerInput,
-  type SimEvent,
 } from "@lava-sumo/shared";
 import type { InputState } from "../input/input";
 import type { Profile } from "../meta/profile";
-import type { MatchSource } from "./matchSource";
+import type { MatchSource, SourceEvents } from "./matchSource";
 
 /** Dev tool: `?fx` spawns one bot of each fighter so every skill can be seen. */
 const FX_MODE = import.meta.env.DEV && typeof location !== "undefined" && new URLSearchParams(location.search).has("fx");
 const FX_CHARACTERS = ["elephant", "monkey", "turtle"] as const;
 
 export const LOCAL_ID = "you";
-const COUNTDOWN_MS = 3000; // pre-match 3-2-1 (A.1)
-const GO_MS = 600;
 
 export class LocalSource implements MatchSource {
   readonly localId = LOCAL_ID;
   private state: MatchState;
   private prev: MatchState;
   private readonly bots: BotController[];
-  private countdownLeft = COUNTDOWN_MS;
+  private countdownLeft = CONFIG.SOLO_COUNTDOWN_MS;
   private sinceGo = 0;
   private acc = 0;
   private seq = 0;
@@ -48,8 +45,8 @@ export class LocalSource implements MatchSource {
     this.bots = botIds.map((id, i) => new BotController(id, profile.difficulty, (seed ^ (i + 1)) >>> 0));
   }
 
-  advance(frameMs: number, local: InputState): SimEvent[] {
-    const out: SimEvent[] = [];
+  advance(frameMs: number, local: InputState): SourceEvents[] {
+    const out: SourceEvents[] = [];
     if (this.countdownLeft > 0) {
       this.countdownLeft -= frameMs;
       if (this.countdownLeft <= 0) this.sinceGo = 0;
@@ -68,7 +65,7 @@ export class LocalSource implements MatchSource {
       this.prev = this.state;
       const r = step(this.state, inputs);
       this.state = r.state;
-      out.push(...r.events);
+      if (r.events.length > 0) out.push({ events: r.events, state: r.state });
       this.acc -= CONFIG.TICK_MS;
       steps++;
     }
@@ -85,7 +82,7 @@ export class LocalSource implements MatchSource {
 
   countdown(): number | "GO!" | null {
     if (this.countdownLeft > 0) return Math.ceil(this.countdownLeft / 1000);
-    return this.sinceGo < GO_MS ? "GO!" : null;
+    return this.sinceGo < CONFIG.GO_DISPLAY_MS ? "GO!" : null;
   }
 
   dispose(): void {}

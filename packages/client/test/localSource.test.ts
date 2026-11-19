@@ -1,55 +1,84 @@
 import { describe, expect, it } from "vitest";
-import { BotController, CONFIG, Phase, createMatch, pickBotSetup, step, type MatchState, type PlayerInput } from "@lava-sumo/shared";
+import { BotController, CONFIG, createMatch, pickBotSetup, step, type MatchState, type PlayerInput } from "@lava-sumo/shared";
 import { LocalSource } from "../src/game/localSource";
 import type { Profile } from "../src/meta/profile";
 
 const profile = { nickname: "Tester", equippedFighter: "elephant", difficulty: "medium" } as unknown as Profile;
 const ZERO = { dirX: 0, dirZ: 0, skill: false };
 
+function reference(seed: number) {
+  const botSetups = pickBotSetup(seed, 3);
+  let state: MatchState = createMatch(seed, [
+    { id: "you", nickname: profile.nickname, character: profile.equippedFighter, isBot: false },
+    ...botSetups.map((b, i) => ({ id: `bot${i + 1}`, nickname: b.nickname, character: b.character, isBot: true })),
+  ]);
+  const bots = botSetups.map((_, i) => new BotController(`bot${i + 1}`, profile.difficulty, (seed ^ (i + 1)) >>> 0));
+  return {
+    get state() { return state; },
+    tick() {
+      const seq = state.tick + 1;
+      const inputs: Record<string, PlayerInput> = { you: { seq, dirX: 0, dirZ: 0, skill: false } };
+      for (const b of bots) inputs[b.playerId] = b.input(state, seq);
+      const r = step(state, inputs);
+      state = r.state;
+      return r;
+    },
+  };
+}
+
 describe("LocalSource", () => {
-  it("matches calling step directly (seed 7, zero input, 200 frames)", () => {
+  it("uneven frames: tick count follows accumulator + catch-up cap, and equals a direct step replay", () => {
     const seed = 7;
     const src = new LocalSource(profile, seed);
-    // reference sim built the same way
-    const botSetups = pickBotSetup(seed, 3);
-    let ref: MatchState = createMatch(seed, [
-      { id: "you", nickname: profile.nickname, character: profile.equippedFighter, isBot: false },
-      ...botSetups.map((b, i) => ({ id: `bot${i + 1}`, nickname: b.nickname, character: b.character, isBot: true })),
-    ]);
-    const bots = botSetups.map((_, i) => new BotController(`bot${i + 1}`, profile.difficulty, (seed ^ (i + 1)) >>> 0));
-    let seq = 0;
-    // skip countdown in the reference: LocalSource freezes sim for 3000 ms
-    let t = 0;
-    const FRAME = CONFIG.TICK_MS; // one tick per frame keeps the reference exact
+    src.advance(CONFIG.SOLO_COUNTDOWN_MS + 1, ZERO); // finish the countdown (sim frozen during it)
+    expect(src.frame().cur.tick).toBe(0);
+
+    let acc = 0;
+    let expected = 0;
     for (let f = 0; f < 200; f++) {
-      src.advance(FRAME, ZERO);
-      t += FRAME;
-      if (t > 3000 && ref.phase === Phase.PLAYING) {
-        seq++;
-        const inputs: Record<string, PlayerInput> = { you: { seq, dirX: 0, dirZ: 0, skill: false } };
-        for (const b of bots) inputs[b.playerId] = b.input(ref, seq);
-        ref = step(ref, inputs).state;
+      const dt = f % 10 === 9 ? 120 : 16.7;
+      src.advance(dt, ZERO);
+      acc += dt;
+      let steps = 0;
+      while (acc >= CONFIG.TICK_MS && steps < CONFIG.MAX_CATCHUP_STEPS) {
+        acc -= CONFIG.TICK_MS;
+        steps++;
+        expected++;
       }
+      if (steps === CONFIG.MAX_CATCHUP_STEPS) acc = 0;
+      expect(src.frame().cur.tick).toBe(expected);
     }
-    // the source stepped on frames after its countdown elapsed; compare tick counts are equal once aligned
+    // 120 ms frames hit the cap (3 < 3.6 ticks), so some time was dropped
+    expect(expected).toBeGreaterThan(100);
+
+    const ref = reference(seed);
+    for (let k = 0; k < expected; k++) ref.tick();
     const cur = src.frame().cur;
-    expect(cur.tick).toBeGreaterThan(0);
-    // replay the reference for exactly cur.tick ticks
-    let r2 = createMatch(seed, [
-      { id: "you", nickname: profile.nickname, character: profile.equippedFighter, isBot: false },
-      ...botSetups.map((b, i) => ({ id: `bot${i + 1}`, nickname: b.nickname, character: b.character, isBot: true })),
-    ]);
-    const bots2 = botSetups.map((_, i) => new BotController(`bot${i + 1}`, profile.difficulty, (seed ^ (i + 1)) >>> 0));
-    for (let k = 1; k <= cur.tick; k++) {
-      const inputs: Record<string, PlayerInput> = { you: { seq: k, dirX: 0, dirZ: 0, skill: false } };
-      for (const b of bots2) inputs[b.playerId] = b.input(r2, k);
-      r2 = step(r2, inputs).state;
-    }
-    expect(cur.tick).toBe(r2.tick);
     cur.players.forEach((p, i) => {
-      expect(p.x).toBe(r2.players[i]!.x);
-      expect(p.z).toBe(r2.players[i]!.z);
+      expect(p.x).toBe(ref.state.players[i]!.x);
+      expect(p.z).toBe(ref.state.players[i]!.z);
     });
+  });
+
+  it("pairs each event with the post-tick state it occurred in", () => {
+    const seed = 7;
+    const src = new LocalSource(profile, seed);
+    src.advance(CONFIG.SOLO_COUNTDOWN_MS + 1, ZERO);
+    const ref = reference(seed);
+    let checked = 0;
+    for (let f = 0; f < 3000 && checked < 3; f++) {
+      const batches = src.advance(CONFIG.TICK_MS * 3 + 0.01, ZERO); // 3 ticks per frame
+      const before = ref.state.tick;
+      const refTicks: Array<{ tick: number; n: number }> = [];
+      for (let k = 0; k < 3; k++) {
+        const r = ref.tick();
+        if (r.events.length > 0) refTicks.push({ tick: ref.state.tick, n: r.events.length });
+      }
+      expect(ref.state.tick).toBe(before + 3);
+      expect(batches.map((b) => ({ tick: b.state.tick, n: b.events.length }))).toEqual(refTicks);
+      if (batches.length > 0 && batches.some((b) => b.state.tick !== src.frame().cur.tick)) checked++;
+    }
+    expect(checked).toBeGreaterThan(0); // saw at least one event batch from a non-final tick
   });
 
   it("counts down 3-2-1-GO then clears", () => {
