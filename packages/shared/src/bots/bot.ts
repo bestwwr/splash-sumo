@@ -97,19 +97,20 @@ export class BotController {
       const a = nextFloat(this.rng) * Math.PI * 2;
       this.wanderX = Math.cos(a);
       this.wanderZ = Math.sin(a);
-      this.nextWanderMs = state.timeMs + nextRange(this.rng, 1500, 3000);
+      this.nextWanderMs = state.timeMs + nextRange(this.rng, CONFIG.BOT_WANDER_MIN_MS, CONFIG.BOT_WANDER_MAX_MS);
     }
 
+    const delayMs = this.reactionMs * w.threatLead;
     const n = CONFIG.BOT_DIRECTIONS;
     const offset = (nextFloat(this.rng) * Math.PI * 2) / n;
     let bestX = 0;
     let bestZ = 0;
-    let best = scoreDirection(state, p, 0, 0, w) + nextFloat(this.rng) * noise;
+    let best = scoreDirection(state, p, 0, 0, w, delayMs) + nextFloat(this.rng) * noise;
     for (let i = 0; i < n; i++) {
       const a = offset + (i / n) * Math.PI * 2;
       const dx = Math.cos(a) * w.speed;
       const dz = Math.sin(a) * w.speed;
-      let s = scoreDirection(state, p, dx, dz, w) + nextFloat(this.rng) * noise;
+      let s = scoreDirection(state, p, dx, dz, w, delayMs) + nextFloat(this.rng) * noise;
       s += w.inertia * (dx * this.prevX + dz * this.prevZ);
       s += w.wander * (dx * this.wanderX + dz * this.wanderZ);
       if (s > best) {
@@ -130,6 +131,8 @@ export class BotController {
   private skillDecision(state: MatchState, p: Player, moveX: number, moveZ: number): { dirX: number; dirZ: number } | null {
     if (p.skillPhase !== SkillPhase.NONE || p.skillCooldownMs > this.reactionMs || p.fallingMs >= 0) return null;
     const smart = this.weights.skillSmart;
+    const K = CONFIG.BOT_SKILL;
+    const aim = smart === 0 ? "sloppy" : "aimed";
     const view = arenaView(state, this.weights.warnSenseMs);
     const lead = this.reactionMs / 1000;
     const opps = state.players.filter((o) => o !== p && isStanding(o));
@@ -140,7 +143,7 @@ export class BotController {
       case "slam": {
         const t = lead + CONFIG.SLAM_WINDUP_MS / 1000;
         const me = predict(p, moveX, moveZ, lead);
-        const range = smart === 0 ? CONFIG.SLAM_RADIUS + 1 : CONFIG.SLAM_RADIUS - 0.2;
+        const range = CONFIG.SLAM_RADIUS + K.SLAM_RANGE_OFFSET[aim];
         let inRange = 0;
         let nearEdge = 0;
         for (const o of opps) {
@@ -155,17 +158,17 @@ export class BotController {
             ? inRange > 0
             : smart === 1
               ? inRange > 0
-              : (nearEdge > 0 || inRange >= 2) && floorSafety(view, me.x, me.z, t * 1000) > 0.5;
+              : (nearEdge > 0 || inRange >= 2) && floorSafety(view, me.x, me.z, t * 1000) > K.SAFE_FLOOR;
         if (ok) want = { dirX: moveX, dirZ: moveZ };
         break;
       }
       case "dash": {
         // Escape: airborne over the gap when the floor under us is going.
         const ml = Math.hypot(moveX, moveZ);
-        if (smart >= 1 && floorSafety(view, p.x, p.z, 300) < 0 && ml > EPS) {
+        if (smart >= 1 && floorSafety(view, p.x, p.z, K.DASH_ESCAPE_SINK_MS) < 0 && ml > EPS) {
           const lx = p.x + (moveX / ml) * CONFIG.DASH_DISTANCE;
           const lz = p.z + (moveZ / ml) * CONFIG.DASH_DISTANCE;
-          if (floorSafety(view, lx, lz, lead * 1000 + CONFIG.DASH_DURATION_MS) > 0.5) {
+          if (floorSafety(view, lx, lz, lead * 1000 + CONFIG.DASH_DURATION_MS) > K.SAFE_FLOOR) {
             want = { dirX: moveX / ml, dirZ: moveZ / ml };
             break;
           }
@@ -178,34 +181,35 @@ export class BotController {
           const dx = op.x - me.x;
           const dz = op.z - me.z;
           const d = Math.hypot(dx, dz);
-          if (d < EPS || d > (smart === 0 ? CONFIG.DASH_DISTANCE + 1 : CONFIG.DASH_DISTANCE - 0.3)) continue;
+          if (d < EPS || d > CONFIG.DASH_DISTANCE + K.DASH_RANGE_OFFSET[aim]) continue;
           const ux = dx / d;
           const uz = dz / d;
           const oe = edgeInfo(view, op.x, op.z);
           const hl = Math.hypot(oe.hx - op.x, oe.hz - op.z);
           const align = hl > EPS ? (ux * (oe.hx - op.x) + uz * (oe.hz - op.z)) / hl : 0;
-          if (smart >= 1 && floorSafety(view, op.x - ux * 0.9, op.z - uz * 0.9, lead * 1000 + 300) < 0.5) continue;
-          if (smart >= 2 && !(oe.dist < this.weights.edgeCap && align > 0.3)) continue;
-          const score = align - d * 0.1;
+          const probe = K.DASH_PROBE_BEHIND_M;
+          if (smart >= 1 && floorSafety(view, op.x - ux * probe, op.z - uz * probe, lead * 1000 + K.DASH_PROBE_MS) < K.SAFE_FLOOR) continue;
+          if (smart >= 2 && !(oe.dist < this.weights.edgeCap && align > K.DASH_ALIGN_MIN)) continue;
+          const score = align - d * K.DASH_DIST_PENALTY;
           if (!bestO || score > bestO.score) bestO = { dx: ux, dz: uz, score };
         }
         if (bestO) want = { dirX: bestO.dx, dirZ: bestO.dz };
         break;
       }
       case "shell": {
-        if (smart >= 2 && floorSafety(view, p.x, p.z, lead * 1000 + CONFIG.SHELL_DURATION_MS) < 0.5) break;
+        if (smart >= 2 && floorSafety(view, p.x, p.z, lead * 1000 + CONFIG.SHELL_DURATION_MS) < K.SAFE_FLOOR) break;
         let threat = false;
         for (const o of opps) {
           const dx = p.x - o.x;
           const dz = p.z - o.z;
           const d = Math.hypot(dx, dz);
           if (smart === 0) {
-            if (d < 1.2) threat = true;
+            if (d < K.SHELL_SLOPPY_M) threat = true;
             continue;
           }
           const closing = d > EPS ? (o.vx * dx + o.vz * dz) / d : 0;
-          if (d < 1.6 + closing * lead && closing > 1.5) threat = true;
-          if (o.skillPhase === SkillPhase.WINDUP && SKILL_OF[o.character] === "slam" && d < CONFIG.SLAM_RADIUS + 0.3) threat = true;
+          if (d < K.SHELL_CHARGE_M + closing * lead && closing > K.SHELL_CLOSING_MIN) threat = true;
+          if (o.skillPhase === SkillPhase.WINDUP && SKILL_OF[o.character] === "slam" && d < CONFIG.SLAM_RADIUS + K.SHELL_WINDUP_MARGIN) threat = true;
           if (isDashing(o) && d < CONFIG.DASH_DISTANCE && closing > 0) threat = true;
         }
         if (!threat && smart >= 2) threat = this.blastIncoming(state, p);
@@ -231,10 +235,10 @@ export class BotController {
     const to = from + CONFIG.SHELL_DURATION_MS;
     const e = state.eruption;
     if (e.phase === 1 && e.impactAtMs >= from && e.impactAtMs <= to) {
-      if (e.targets.some((t) => Math.hypot(p.x - t.x, p.z - t.z) < CONFIG.ERUPTION_RADIUS + 0.3)) return true;
+      if (e.targets.some((t) => Math.hypot(p.x - t.x, p.z - t.z) < CONFIG.ERUPTION_RADIUS + CONFIG.BOT_SKILL.SHELL_BLAST_MARGIN)) return true;
     }
     return state.rocks.some(
-      (r) => r.landAtMs >= from && r.landAtMs <= to && Math.hypot(p.x - r.targetX, p.z - r.targetZ) < CONFIG.ROCK_HIT_RADIUS + 0.3,
+      (r) => r.landAtMs >= from && r.landAtMs <= to && Math.hypot(p.x - r.targetX, p.z - r.targetZ) < CONFIG.ROCK_HIT_RADIUS + CONFIG.BOT_SKILL.SHELL_BLAST_MARGIN,
     );
   }
 
@@ -254,7 +258,7 @@ export class BotController {
         nearestD = d;
         nearest = o;
       }
-      if (d > CONFIG.ROCK_RANGE - 0.3) continue;
+      if (d > CONFIG.ROCK_RANGE - CONFIG.BOT_SPIRIT_RANGE_MARGIN) continue;
       const s = edgeInfo(view, o.x, o.z).dist + nextFloat(this.rng) * noise;
       if (s < best) {
         best = s;

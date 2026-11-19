@@ -51,9 +51,10 @@ Decisions made while building, per SPEC §0. Spec-level decision records (D1–D
 - "Edge" is derived from the tiles, not the arena radius: distance to the nearest missing neighbor cell, SINKING/GONE tile, or warned tile that sinks within the bot's `warnSenseMs`. A larger `warnSenseMs` makes a bot both avoid warnings earlier and treat opponents near warning tiles as "near the edge" (Hard's baiting onto warning tiles).
 - Skills: Easy uses sloppy triggers at 8% per think; Medium uses "opponent in range" (current positions) at 50%; Hard times them and leads targets (slam only when a target is near an edge or two are in range and its own tile stays solid through the wind-up; dash only to push a near-edge target toward its hole, or to jump a sinking tile; shell against chargers, wind-ups, dashes, eruption circles and rocks, and only on floor that lasts the shell).
 - Dead bots play their ember spirit: aim at the living player in range who is nearest the edge, throw when the rock is ready.
-- Test-only note: the "hard bot dodges a wind-up 1 m away" test holds the dummy elephant's wind-up at 1 s. With the real 400 ms wind-up no fighter can cover 1 m after a 120 ms reaction (physics limit ≈ 0.65–0.9 m), so a real slam started 1 m from a bot is effectively undodgeable. *Open:* if that should change, it is a skill-tuning question (wind-up length), not a bot one.
+- **Dodge range (real 400 ms slam wind-up):** a settled Hard bot (own skill on cooldown) escapes on every seed (60/60) from **≥ 1.7 m** for Elephant and Turtle and **≥ 1.8 m** for all three fighters (Monkey: 60/60 at 1.6 m, 58/60 at 1.7 m). Below that it is physics: after the 120 ms reaction plus up to 67 ms of think wait, a 4.5 m/s fighter covers only ≈ 0.42 m before impact. Escape rates by start distance (60 seeds): Elephant/Turtle 1.4 m 0, 1.5 m 16, 1.6 m 45, 1.7 m 60; Monkey 1.4 m 45, 1.5 m 45, 1.6 m 60. `test/bots.test.ts` checks 1.8 m for all fighters with the real wind-up; a second test holds a dummy wind-up at 1 s from 1 m to check the dodge logic itself. Turtles normally shell instead.
+- Hard judges threat timings net of its own reaction delay (`threatLead` 1: it has `impact − reaction` to get clear). Easy and Medium don't (0).
 
-Chosen tuning (`config.ts`):
+Chosen tuning (`config.ts`; shared bot constants such as threat multipliers and zone margins, the pressure offset, the wander interval and skill-trigger distances/thresholds live in `BOT_THREAT`, `BOT_SKILL` and the other `BOT_*` keys):
 
 | | Easy | Medium | Hard |
 |---|---|---|---|
@@ -64,17 +65,19 @@ Chosen tuning (`config.ts`):
 | edge / edgeCap | 1 / 1.5 m | 1.4 / 2.5 m | 1.8 / 3 m |
 | center | 0.05 | 0.25 | 0.2 |
 | pressure / chase | 0.3 / 0.25 | 1.2 / 0.35 | 3 / 0.4 |
-| threat | 0 | 1.5 | 4 |
+| threat / threatLead | 0 / 0 | 1.5 / 0 | 4 / 1 |
 | wander / inertia | 0.6 / 0.2 | 0 / 0.25 | 0 / 0.25 |
 | skill timing / stick speed | sloppy / 0.7 | in range / 1 | timed + lead / 1 |
 
-Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~35 s): 200 seeded 4-bot matches per pairing, random fighters, sides alternate by slot. Share = strong wins / decided matches (draws excluded; counting draws as losses lowers each by ≤ 1 point).
+Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~40 s): 200 seeded 4-bot matches per pairing, random fighters, sides alternate by slot. Share = strong wins / decided matches (draws excluded; counting draws as losses lowers each by ≤ 1 point).
 
 | Pairing | Strong wins | Weak wins | Draws | Strong share |
 |---|---|---|---|---|
-| 2 hard vs 2 easy | 193 | 5 | 2 | 97.5% |
-| 2 hard vs 2 medium | 157 | 41 | 2 | 79.3% |
+| 2 hard vs 2 easy | 187 | 8 | 5 | 95.9% |
+| 2 hard vs 2 medium | 152 | 46 | 2 | 76.8% |
 | 2 medium vs 2 easy | 154 | 41 | 5 | 79.0% |
+
+(Before Hard's `threatLead` was added: 97.5 / 79.3 / 79.0%. Moving the inline bot constants into `CONFIG.BOT_*` alone left the table identical.)
 
 - Tuning history: first pass gave 95.9 / 75.0 / 80.1%, but Easy bots walked off the rim on their own (half of Easy deaths were FLOOR, ~14 s matches); Easy now moves at 0.7 stick with less wander and more edge weight. Tried and dropped: an "exposure" term (don't stand near an edge with an opponent behind you) and a "stay out of a ready elephant's range" term both made Hard more passive and *lowered* Hard vs Medium (69.9% / ~77%). Higher Hard pressure, Medium seeing warnings later (1000 ms) and Hard-only target leading widened the gap. Run-to-run sensitivity to small weight changes is about ±3 points.
 - Bot `input()` averages ≈ 15–20 µs per call (budget 1 ms).

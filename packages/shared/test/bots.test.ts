@@ -206,6 +206,45 @@ describe("BotController", () => {
     expect(() => run("easy", 1)).not.toThrow();
   });
 
+  it("hard bot dodges a real 400 ms wind-up from 1.8 m (its reliable dodge range)", () => {
+    // Real CONFIG.SLAM_WINDUP_MS. The bot has been running (settled), so the wind-up starts at a
+    // random point in its think cycle. Its own skill is on cooldown so it must dodge on foot.
+    // 1.8 m is where Hard escapes on every seed for all fighters; see DECISIONS.md D-SQP-1.
+    const DIST = 1.8;
+    for (const character of CHARACTER_IDS) {
+      for (let seed = 1; seed <= 10; seed++) {
+        let s = duel(character);
+        const reset = (st: MatchState) => {
+          place(st, "me", 0, 0);
+          place(st, "el", DIST, 0);
+          st.players[0]!.skillCooldownMs = 60_000;
+          st.players[1]!.skillCooldownMs = CONFIG.SLAM_COOLDOWN_MS;
+        };
+        const bot = new BotController("me", "hard", seed);
+        let seq = 0;
+        for (let i = 0; i < CONFIG.TICK_HZ + (seed % 3); i++) {
+          reset(s);
+          s = step(s, { me: bot.input(s, ++seq) }).state;
+        }
+        reset(s);
+        s.players[1]!.skillPhase = SkillPhase.WINDUP;
+        s.players[1]!.skillPhaseMs = CONFIG.SLAM_WINDUP_MS;
+        let slam: SimEvent | undefined;
+        let distAtImpact = 0;
+        for (let i = 0; i < 20 && !slam; i++) {
+          const before = s.players[0]!;
+          distAtImpact = Math.hypot(before.x - s.players[1]!.x, before.z - s.players[1]!.z);
+          const r = step(s, { me: bot.input(s, ++seq) });
+          s = r.state;
+          slam = r.events.find((e) => e.type === "slamImpact");
+        }
+        expect(slam, `${character} seed ${seed}`).toBeDefined();
+        expect(slam?.type === "slamImpact" && slam.hitIds.includes("me"), `${character} seed ${seed}`).toBe(false);
+        expect(distAtImpact, `${character} seed ${seed}`).toBeGreaterThan(CONFIG.SLAM_RADIUS);
+      }
+    }
+  });
+
   it("reaction delay: a hard bot reacts to a new threat ≥ 120 ms and < 300 ms after it appears", () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
       let s = duel("monkey");

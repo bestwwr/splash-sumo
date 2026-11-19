@@ -107,18 +107,67 @@ const BASE = {
   BOT_DIRECTIONS: 16,
   /** Path samples (s ahead) used to score a direction; ≤ 0.9 m apart at top speed so holes are not skipped. */
   BOT_LOOKAHEAD_S: [0.1, 0.2, 0.3, 0.4, 0.5, 0.65, 0.8],
+  /** Warned-tile safety: min(CAP, -1 + SLOPE × timeLeft / warnSenseMs). */
+  BOT_WARNING_SAFETY_CAP: 0.5,
+  BOT_WARNING_SAFETY_SLOPE: 1.5,
+  /** Pressure: aim this far behind a near-edge opponent; within SNAP of that spot, push through them. */
+  BOT_PRESSURE_BEHIND_M: 0.8,
+  BOT_PRESSURE_SNAP_M: 0.5,
+  /** Pressure/chase attraction falls off as 1 / (1 + FALLOFF × distance). */
+  BOT_DISTANCE_FALLOFF: 0.3,
+  /** Easy's wander direction changes every MIN..MAX ms. */
+  BOT_WANDER_MIN_MS: 1500,
+  BOT_WANDER_MAX_MS: 3000,
+  /**
+   * Threat penalties: MULT × ramp(distance, zone radius + MARGIN), evaluated at the threat's
+   * impact time (at least MIN_HORIZON_S ahead).
+   */
+  BOT_THREAT: {
+    SLAM: { MULT: 3, MARGIN: 0.5, MIN_HORIZON_S: 0.3 },
+    DASH: { MULT: 2, MARGIN: 0.3, MIN_HORIZON_S: 0.2 },
+    ERUPTION: { MULT: 2, MARGIN: 0.4, MIN_HORIZON_S: 0.2 },
+    ROCK: { MULT: 1.5, MARGIN: 0.3, MIN_HORIZON_S: 0.1 },
+  },
+  /** Skill triggers. "sloppy" = Easy (skillSmart 0), "aimed" = Medium/Hard. */
+  BOT_SKILL: {
+    /** floorSafety above this counts as safe footing for a skill. */
+    SAFE_FLOOR: 0.5,
+    /** Slam when a target is within SLAM_RADIUS + offset. */
+    SLAM_RANGE_OFFSET: { sloppy: 1, aimed: -0.2 },
+    /** Dash at a target within DASH_DISTANCE + offset. */
+    DASH_RANGE_OFFSET: { sloppy: 1, aimed: -0.3 },
+    /** Escape-dash when our tile sinks within this many ms. */
+    DASH_ESCAPE_SINK_MS: 300,
+    /** Aimed dash: the floor this far short of the target must be safe this many ms after the press. */
+    DASH_PROBE_BEHIND_M: 0.9,
+    DASH_PROBE_MS: 300,
+    /** Hard dash: the push must point at least this much toward the target's nearest hole. */
+    DASH_ALIGN_MIN: 0.3,
+    /** Dash target preference: alignment − this × distance. */
+    DASH_DIST_PENALTY: 0.1,
+    /** Sloppy shell: any opponent this close. */
+    SHELL_SLOPPY_M: 1.2,
+    /** Aimed shell: an opponent closing faster than CLOSING_MIN within CHARGE_M (+ closing × reaction). */
+    SHELL_CHARGE_M: 1.6,
+    SHELL_CLOSING_MIN: 1.5,
+    /** Aimed shell also covers slam wind-ups (radius + margin) and eruption/rock blasts (radius + margin). */
+    SHELL_WINDUP_MARGIN: 0.3,
+    SHELL_BLAST_MARGIN: 0.3,
+  },
+  /** Spirits only pick targets this far inside ROCK_RANGE. */
+  BOT_SPIRIT_RANGE_MARGIN: 0.3,
   BOT_WEIGHTS: {
     easy: {
       floor: 2, warnSenseMs: 500, edge: 1, edgeCap: 1.5, center: 0.05, pressure: 0.3, chase: 0.25,
-      threat: 0, wander: 0.6, inertia: 0.2, skillSmart: 0, speed: 0.7,
+      threat: 0, threatLead: 0, wander: 0.6, inertia: 0.2, skillSmart: 0, speed: 0.7,
     },
     medium: {
       floor: 4, warnSenseMs: 1000, edge: 1.4, edgeCap: 2.5, center: 0.25, pressure: 1.2, chase: 0.35,
-      threat: 1.5, wander: 0, inertia: 0.25, skillSmart: 1, speed: 1,
+      threat: 1.5, threatLead: 0, wander: 0, inertia: 0.25, skillSmart: 1, speed: 1,
     },
     hard: {
       floor: 5, warnSenseMs: 1800, edge: 1.8, edgeCap: 3, center: 0.2, pressure: 3, chase: 0.4,
-      threat: 4, wander: 0, inertia: 0.25, skillSmart: 2, speed: 1,
+      threat: 4, threatLead: 1, wander: 0, inertia: 0.25, skillSmart: 2, speed: 1,
     },
   },
 } as const;

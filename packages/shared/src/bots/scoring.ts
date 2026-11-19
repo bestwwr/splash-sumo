@@ -29,6 +29,8 @@ export interface BotWeights {
   chase: number;
   /** Avoid slam wind-ups, dash lines, eruption circles and incoming rocks. */
   threat: number;
+  /** Controller-only: fraction of its own reaction delay the bot subtracts from threat timings (1 = fully aware). */
+  threatLead: number;
   /** Controller-only: bias toward a slowly changing random direction. */
   wander: number;
   /** Controller-only: bias toward the previous decision (less jitter). */
@@ -147,7 +149,7 @@ export function floorSafety(view: ArenaView, x: number, z: number, arriveMs: num
   const left = sinkAtMs(t) - (view.nowMs + arriveMs);
   if (left === Infinity || left > view.warnSenseMs) return 1;
   if (left <= 0) return -1;
-  return Math.min(0.5, -1 + (1.5 * left) / view.warnSenseMs);
+  return Math.min(CONFIG.BOT_WARNING_SAFETY_CAP, -1 + (CONFIG.BOT_WARNING_SAFETY_SLOPE * left) / view.warnSenseMs);
 }
 
 /** Predicted position `t` seconds ahead if `p` steers along (dirX, dirZ) from now. */
@@ -163,7 +165,7 @@ export function predict(p: Player, dirX: number, dirZ: number, t: number): { x: 
   const vmax = maxSpeed(p.character);
   const tx = stunned ? 0 : dirX * vmax;
   const tz = stunned ? 0 : dirZ * vmax;
-  const fast = Math.hypot(p.vx, p.vz) > vmax * 1.05;
+  const fast = Math.hypot(p.vx, p.vz) > vmax * 1.05; // same over-speed test as physics.ts applyMovement
   const k = stunned ? CONFIG.STUN_DECAY_RATE : fast ? CONFIG.KNOCKBACK_DECAY_RATE : CONFIG.ACCEL_RATE;
   const f = (1 - Math.exp(-k * t)) / k;
   return { x: p.x + tx * t + (p.vx - tx) * f, z: p.z + tz * t + (p.vz - tz) * f };
@@ -182,40 +184,56 @@ export const isStanding = (o: Player): boolean => o.alive && o.fallingMs < 0;
 /** Ramp penalty: 1 at the center of a radius-R danger zone, 0 at its rim. */
 const ramp = (d: number, r: number): number => (d < r ? (r - d) / r : 0);
 
-/** Threat penalty (≥ 0, unweighted) for `p` steering along (dirX, dirZ). */
-function threatPenalty(state: MatchState, p: Player, dirX: number, dirZ: number): number {
+/**
+ * Threat penalty (≥ 0, unweighted) for `p` steering along (dirX, dirZ). The bot only starts moving
+ * `delayS` from now (its reaction delay), so it has that much less time before each impact.
+ */
+function threatPenalty(state: MatchState, p: Player, dirX: number, dirZ: number, delayS: number): number {
+  const T = CONFIG.BOT_THREAT;
   let pen = 0;
   const now = state.timeMs;
   for (const o of state.players) {
     if (o === p || !isStanding(o)) continue;
     if (o.skillPhase === SkillPhase.WINDUP && SKILL_OF[o.character] === "slam") {
-      const pos = predict(p, dirX, dirZ, Math.max(o.skillPhaseMs / 1000, 0.3));
+      const pos = predict(p, dirX, dirZ, Math.max(o.skillPhaseMs / 1000 - delayS, T.SLAM.MIN_HORIZON_S));
       // A winding-up elephant is rooted: a path through it is blocked, not an escape.
       const blocked = segmentDistance(o.x, o.z, p.x, p.z, pos.x, pos.z) < CONFIG.PLAYER_RADIUS * 2;
-      pen += 3 * (blocked ? 1 : ramp(Math.hypot(pos.x - o.x, pos.z - o.z), CONFIG.SLAM_RADIUS + 0.5));
+      pen += T.SLAM.MULT * (blocked ? 1 : ramp(Math.hypot(pos.x - o.x, pos.z - o.z), CONFIG.SLAM_RADIUS + T.SLAM.MARGIN));
     } else if (isDashing(o)) {
       const leftS = o.skillPhaseMs / 1000;
       const reach = (CONFIG.DASH_DISTANCE * o.skillPhaseMs) / CONFIG.DASH_DURATION_MS;
-      const pos = predict(p, dirX, dirZ, Math.max(leftS, 0.2));
+      const pos = predict(p, dirX, dirZ, Math.max(leftS - delayS, T.DASH.MIN_HORIZON_S));
       const d = segmentDistance(pos.x, pos.z, o.x, o.z, o.x + o.dashDirX * reach, o.z + o.dashDirZ * reach);
-      pen += 2 * ramp(d, CONFIG.PLAYER_RADIUS * 2 + 0.3);
+      pen += T.DASH.MULT * ramp(d, CONFIG.PLAYER_RADIUS * 2 + T.DASH.MARGIN);
     }
   }
   const e = state.eruption;
   if (e.phase === 1) {
     const tImp = (e.impactAtMs - now) / 1000;
-    const pos = predict(p, dirX, dirZ, Math.max(tImp, 0.2));
-    for (const t of e.targets) pen += 2 * ramp(Math.hypot(pos.x - t.x, pos.z - t.z), CONFIG.ERUPTION_RADIUS + 0.4);
+    const pos = predict(p, dirX, dirZ, Math.max(tImp - delayS, T.ERUPTION.MIN_HORIZON_S));
+    for (const t of e.targets) {
+      pen += T.ERUPTION.MULT * ramp(Math.hypot(pos.x - t.x, pos.z - t.z), CONFIG.ERUPTION_RADIUS + T.ERUPTION.MARGIN);
+    }
   }
   for (const r of state.rocks) {
-    const pos = predict(p, dirX, dirZ, Math.max((r.landAtMs - now) / 1000, 0.1));
-    pen += 1.5 * ramp(Math.hypot(pos.x - r.targetX, pos.z - r.targetZ), CONFIG.ROCK_HIT_RADIUS + 0.3);
+    const pos = predict(p, dirX, dirZ, Math.max((r.landAtMs - now) / 1000 - delayS, T.ROCK.MIN_HORIZON_S));
+    pen += T.ROCK.MULT * ramp(Math.hypot(pos.x - r.targetX, pos.z - r.targetZ), CONFIG.ROCK_HIT_RADIUS + T.ROCK.MARGIN);
   }
   return pen;
 }
 
-/** Score a move direction for `p` (higher is better). (0, 0) scores standing still. */
-export function scoreDirection(state: MatchState, p: Player, dirX: number, dirZ: number, weights: BotWeights): number {
+/**
+ * Score a move direction for `p` (higher is better). (0, 0) scores standing still.
+ * `delayMs`: how long until this decision takes effect (the bot's reaction delay).
+ */
+export function scoreDirection(
+  state: MatchState,
+  p: Player,
+  dirX: number,
+  dirZ: number,
+  weights: BotWeights,
+  delayMs = 0,
+): number {
   const w = weights;
   const view = arenaView(state, w.warnSenseMs);
   const look = CONFIG.BOT_LOOKAHEAD_S;
@@ -260,18 +278,18 @@ export function scoreDirection(state: MatchState, p: Player, dirX: number, dirZ:
       if (nl < EPS) continue;
       const nx = nx0 / nl;
       const nz = nz0 / nl;
-      const ax = o.x - nx * 0.8 - p.x;
-      const az = o.z - nz * 0.8 - p.z;
+      const ax = o.x - nx * CONFIG.BOT_PRESSURE_BEHIND_M - p.x;
+      const az = o.z - nz * CONFIG.BOT_PRESSURE_BEHIND_M - p.z;
       const al = Math.hypot(ax, az);
-      const gx = al > 0.5 ? ax / al : nx;
-      const gz = al > 0.5 ? az / al : nz;
-      score += (w.pressure * danger * (dirX * gx + dirZ * gz)) / (1 + 0.3 * al);
+      const gx = al > CONFIG.BOT_PRESSURE_SNAP_M ? ax / al : nx;
+      const gz = al > CONFIG.BOT_PRESSURE_SNAP_M ? az / al : nz;
+      score += (w.pressure * danger * (dirX * gx + dirZ * gz)) / (1 + CONFIG.BOT_DISTANCE_FALLOFF * al);
     }
     if (nearest && nearestD > EPS && !isShelled(nearest)) {
-      score += (w.chase * (dirX * (nearest.x - p.x) + dirZ * (nearest.z - p.z))) / nearestD / (1 + 0.3 * nearestD);
+      score += (w.chase * (dirX * (nearest.x - p.x) + dirZ * (nearest.z - p.z))) / nearestD / (1 + CONFIG.BOT_DISTANCE_FALLOFF * nearestD);
     }
   }
 
-  if (w.threat > 0) score -= w.threat * threatPenalty(state, p, dirX, dirZ);
+  if (w.threat > 0) score -= w.threat * threatPenalty(state, p, dirX, dirZ, delayMs / 1000);
   return score;
 }
