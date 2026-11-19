@@ -26,6 +26,16 @@ export interface OnlineDeps {
   setIdle(active: boolean): void;
   /** Return to the Home screen (all online screens already hidden). */
   onHome(): void;
+  /** Test seams; default to the real implementations. */
+  api?: Partial<OnlineApi>;
+}
+
+export interface OnlineApi {
+  connectRoom: typeof connectRoom;
+  createRoom: typeof createRoom;
+  checkRoom: typeof checkRoom;
+  runMatchView: typeof runMatchView;
+  makeSource(start: StartMsg, you: string, send: (m: ClientMsg) => void): NetSource;
 }
 
 const UNAVAILABLE = "Room not available — create your own room";
@@ -33,6 +43,16 @@ const DOWN = "Online play is down or busy — try Quick Play";
 
 export function createOnlineFlow(deps: OnlineDeps) {
   const { root, gs, controls, hud } = deps;
+  const api: OnlineApi = {
+    connectRoom,
+    createRoom,
+    checkRoom,
+    runMatchView,
+    makeSource: (st, id, snd) => new NetSource(st, id, snd, () => performance.now()),
+    ...deps.api,
+  };
+  /** Bumped on back/leave/teardown; async steps compare it after each await. */
+  let gen = 0;
   let conn: RoomConnection | null = null;
   let you = "";
   let code = "";
@@ -46,7 +66,7 @@ export function createOnlineFlow(deps: OnlineDeps) {
     onCreate: () => void create(),
     onJoin: (c) => void join(c),
     onBack: () => {
-      friends.hide();
+      teardown();
       deps.onHome();
     },
   });
@@ -58,23 +78,27 @@ export function createOnlineFlow(deps: OnlineDeps) {
   });
 
   function stopView() {
-    view?.stop();
+    const v = view;
     view = null;
     net = null;
+    v?.stop();
   }
 
   /** Drop the connection and all online UI. */
   function teardown() {
+    gen++;
     stopView();
-    conn?.close();
+    const c = conn;
     conn = null;
+    c?.close();
     hadLobby = false;
     lobby.hide();
     friends.hide();
   }
 
   function leave() {
-    conn?.send({ t: "leave" });
+    const c = conn;
+    c?.send({ t: "leave" });
     teardown();
     deps.onHome();
   }
@@ -96,9 +120,9 @@ export function createOnlineFlow(deps: OnlineDeps) {
     lobby.hide();
     friends.hide();
     deps.setIdle(false);
-    const source = new NetSource(s, you, send, () => performance.now());
+    const source = api.makeSource(s, you, send);
     net = source;
-    view = runMatchView(gs, controls, hud, source, {
+    view = api.runMatchView(gs, controls, hud, source, {
       subtitle: () => "Online match",
       actions: [
         { id: "again", label: "Play again", onClick: () => send({ t: "again" }) },
@@ -150,13 +174,17 @@ export function createOnlineFlow(deps: OnlineDeps) {
   function enter(c: string) {
     const p = deps.getProfile();
     code = c;
+    const g = gen;
     let reconnected = false;
-    conn = connectRoom(
+    conn = api.connectRoom(
       c,
       { token: playerToken(), nickname: p.nickname, character: p.equippedFighter },
       {
-        onMsg,
+        onMsg: (m) => {
+          if (g === gen) onMsg(m);
+        },
         onState(s) {
+          if (g !== gen) return;
           if (s === "open") {
             if (reconnected) net?.resetInput();
           } else if (s === "reconnecting") {
@@ -175,9 +203,13 @@ export function createOnlineFlow(deps: OnlineDeps) {
   async function create() {
     friends.setBusy(true);
     friends.setMessage("Creating room…");
+    const g = ++gen;
     try {
-      enter(await createRoom());
+      const c = await api.createRoom();
+      if (g !== gen) return;
+      enter(c);
     } catch {
+      if (g !== gen) return;
       friends.setBusy(false);
       friends.setMessage(DOWN, true);
     }
@@ -186,8 +218,11 @@ export function createOnlineFlow(deps: OnlineDeps) {
   async function join(c: string) {
     friends.setBusy(true);
     friends.setMessage("Joining…");
-    const r = await checkRoom(c);
-    if (r === "ok") enter(c);
+    const g = ++gen;
+    const r = await api.checkRoom(c);
+    if (g !== gen) return;
+    // IN_PROGRESS may be our own rejoin; the server decides (replies IN_PROGRESS error if not a member).
+    if (r === "ok" || r === "IN_PROGRESS") enter(c);
     else {
       friends.setBusy(false);
       friends.setMessage(r === "DOWN" ? DOWN : UNAVAILABLE, true);
