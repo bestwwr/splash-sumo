@@ -46,6 +46,7 @@ interface Member {
   disconnectedAt: number;
   input: PlayerInput;
   lastSeq: number;
+  lastMsgAt: number;
   bot: BotController | null;
 }
 
@@ -63,6 +64,8 @@ export class RoomLogic {
   private readonly conns = new Map<ConnId, ConnState>();
   /** Starts at construction (a never-joined room dies too); cleared on join, restarted when the last human leaves. */
   private emptySince: number | null;
+  /** Last message from any connection; bounds the life of idle LOBBY/RESULTS rooms. */
+  private lastActivityAt: number;
 
   private state: MatchState | null = null;
   private bots: BotController[] = [];
@@ -80,6 +83,7 @@ export class RoomLogic {
     createdAtMs: number,
   ) {
     this.emptySince = createdAtMs;
+    this.lastActivityAt = createdAtMs;
   }
 
   // ---- queries ----
@@ -100,7 +104,9 @@ export class RoomLogic {
   }
 
   isDead(nowMs: number): boolean {
-    return this.emptySince !== null && nowMs - this.emptySince >= CONFIG.NET_EMPTY_ROOM_MS;
+    if (this.emptySince !== null && nowMs - this.emptySince >= CONFIG.NET_EMPTY_ROOM_MS) return true;
+    const idlePhase = this.phase === Phase.LOBBY || this.phase === Phase.RESULTS;
+    return idlePhase && nowMs - this.lastActivityAt >= CONFIG.NET_IDLE_ROOM_MS;
   }
 
   // ---- connection lifecycle ----
@@ -121,6 +127,8 @@ export class RoomLogic {
   message(conn: ConnId, raw: unknown, nowMs: number): Outgoing[] {
     const cs = this.conns.get(conn);
     if (!cs) return [];
+    this.lastActivityAt = nowMs;
+    if (cs.member) cs.member.lastMsgAt = nowMs;
     // Rate limit every message (pre-join and invalid included); over-limit ones are dropped unprocessed.
     const verdict = this.allowMessage(cs, nowMs);
     if (verdict === "kick") return [{ close: conn, code: "KICKED" }, ...this.disconnect(conn, nowMs)];
@@ -176,7 +184,7 @@ export class RoomLogic {
       this.lastSimMs = nowMs;
       let steps = 0;
       while (this.acc >= CONFIG.TICK_MS && steps < CONFIG.MAX_CATCHUP_STEPS && this.state!.phase === Phase.PLAYING) {
-        this.stepOnce();
+        this.stepOnce(nowMs);
         this.acc -= CONFIG.TICK_MS;
         steps++;
       }
@@ -185,6 +193,7 @@ export class RoomLogic {
         this.maybeSnap(nowMs, out);
       } else {
         this.phase = Phase.RESULTS;
+        this.lastActivityAt = nowMs;
         this.sendSnap(nowMs, out);
         out.push(this.lobbyMsg());
       }
@@ -194,11 +203,14 @@ export class RoomLogic {
 
   // ---- internals ----
 
-  private stepOnce(): void {
+  private stepOnce(nowMs: number): void {
     const state = this.state!;
     const seq = state.tick + 1;
     const inputs: Record<string, PlayerInput> = {};
-    for (const m of this.members) inputs[m.id] = m.bot ? { ...m.bot.input(state, seq), seq: 0 } : m.input; // bots never advance lastProcessedSeq
+    for (const m of this.members) inputs[m.id] = m.bot ? { ...m.bot.input(state, seq), seq: 0 } // bots never advance lastProcessedSeq
+        : nowMs - m.lastMsgAt > CONFIG.NET_SILENT_INPUT_MS
+          ? { seq: Math.max(0, m.lastSeq), dirX: 0, dirZ: 0, skill: false } // silent connection: don't keep steering
+          : m.input;
     for (const b of this.bots) inputs[b.playerId] = b.input(state, seq);
     const r = step(state, inputs);
     this.state = r.state;
@@ -232,6 +244,7 @@ export class RoomLogic {
     this.bots = botSetups.map((_, i) => new BotController(`bot${i + 1}`, this.difficulty, (seed ^ (i + 1)) >>> 0));
     for (const m of this.members) {
       m.lastSeq = -1;
+      m.lastMsgAt = nowMs;
       m.input = { seq: 0, dirX: 0, dirZ: 0, skill: false };
       m.bot = null;
     }
@@ -282,6 +295,7 @@ export class RoomLogic {
         (this.phase === Phase.COUNTDOWN || this.phase === Phase.PLAYING) &&
         nowMs - m.disconnectedAt >= CONFIG.NET_RECONNECT_MS
       ) {
+        this.conns.delete(conn);
         return [{ close: conn, code: "IN_PROGRESS" }];
       }
       m.conn = conn;
@@ -289,12 +303,16 @@ export class RoomLogic {
       m.bot = null;
       m.disconnectedAt = 0;
       m.lastSeq = -1;
+      m.lastMsgAt = nowMs;
       // Client seq may restart; bot driving never advanced it, so clear any stale value.
       const p = this.state?.players.find((x) => x.id === m!.id);
       if (p) p.lastProcessedSeq = 0;
     } else {
       const j = this.joinable();
-      if (!j.ok) return [{ close: conn, code: j.code }];
+      if (!j.ok) {
+        this.conns.delete(conn); // the adapter drops its socket handle on close, so no disconnect() will follow
+        return [{ close: conn, code: j.code }];
+      }
       const used = new Set(this.members.map((x) => x.id));
       let n = 1;
       while (used.has(`p${n}`)) n++;
@@ -308,6 +326,7 @@ export class RoomLogic {
         disconnectedAt: 0,
         input: { seq: 0, dirX: 0, dirZ: 0, skill: false },
         lastSeq: -1,
+        lastMsgAt: nowMs,
         bot: null,
       };
       this.members.push(m);
@@ -315,11 +334,16 @@ export class RoomLogic {
     cs.member = m;
     this.emptySince = null;
     out.push({ to: conn, msg: { t: "welcome", you: m.id, code: this.code } }, this.lobbyMsg());
-    if (rejoined && this.state && this.startInfo && this.phase !== Phase.LOBBY) {
-      // Resync only this conn: the match setup, then a full snapshot.
+    const inMatch = this.startInfo?.setups.some((s) => s.id === m!.id) === true;
+    if (rejoined && inMatch && this.state && this.startInfo && this.phase !== Phase.LOBBY) {
+      // Resync only this conn: the match setup, then a full snapshot. (A friend who joined during RESULTS
+      // is not in setups; they just see the lobby until the next match.)
       const remaining = this.phase === Phase.COUNTDOWN ? Math.max(0, this.countdownEndsAt - nowMs) : 0;
       out.push({ to: conn, msg: { t: "start", ...this.startInfo, countdownMs: remaining } });
-      const snap = encodeSnap(this.state, null, []);
+      // Rejoining into RESULTS: replay the match end so the client shows its results screen.
+      const ended: SimEvent[] =
+        this.phase === Phase.RESULTS && this.state.result ? [{ type: "matchEnd", result: this.state.result }] : [];
+      const snap = encodeSnap(this.state, null, ended);
       snap.phase = this.phase;
       out.push({ to: conn, msg: { t: "snap", ...snap } });
     }
@@ -369,12 +393,12 @@ export class RoomLogic {
   /** Fixed 1 s windows. "kick" = continuously over the limit for NET_ABUSE_KICK_MS. */
   private allowMessage(cs: ConnState, nowMs: number): "ok" | "drop" | "kick" {
     if (nowMs - cs.windowStart >= 1000) {
-      if (cs.overSince !== null && cs.windowCount <= CONFIG.NET_INPUT_MAX_PER_SEC) cs.overSince = null;
+      if (cs.overSince !== null && cs.windowCount <= CONFIG.NET_SERVER_MSG_MAX_PER_SEC) cs.overSince = null;
       cs.windowStart = nowMs;
       cs.windowCount = 0;
     }
     cs.windowCount++;
-    if (cs.windowCount > CONFIG.NET_INPUT_MAX_PER_SEC) {
+    if (cs.windowCount > CONFIG.NET_SERVER_MSG_MAX_PER_SEC) {
       if (cs.overSince === null) cs.overSince = nowMs;
       if (nowMs - cs.overSince >= CONFIG.NET_ABUSE_KICK_MS) return "kick";
       return "drop";

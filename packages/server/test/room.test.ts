@@ -152,14 +152,14 @@ describe("match", () => {
   it("rate-limits inputs and kicks sustained abuse", () => {
     const h = startedRoom(1);
     h.run(3100);
-    for (let i = 1; i <= 30; i++) h.send("c1", { t: "in", seq: i, dirX: 0, dirZ: 1, skill: false });
+    for (let i = 1; i <= 45; i++) h.send("c1", { t: "in", seq: i, dirX: 0, dirZ: 1, skill: false });
     const s = snaps(h.run(100));
-    expect(s[s.length - 1]!.players[0]!.lastProcessedSeq).toBe(15);
+    expect(s[s.length - 1]!.players[0]!.lastProcessedSeq).toBe(CONFIG.NET_SERVER_MSG_MAX_PER_SEC);
 
     let seq = 100;
     let kicked: Outgoing[] = [];
     for (let sec = 0; sec < 7 && kicked.length === 0; sec++) {
-      for (let i = 0; i < 30; i++) h.send("c1", { t: "in", seq: seq++, dirX: 0, dirZ: 1, skill: false });
+      for (let i = 0; i < 60; i++) h.send("c1", { t: "in", seq: seq++, dirX: 0, dirZ: 1, skill: false });
       kicked = closes(h.run(1000));
       kicked.push(...closes(h.log.splice(0)));
     }
@@ -215,12 +215,12 @@ describe("fix round 1", () => {
     const h = makeRoom();
     h.join("c1", "tok1");
     let lobbies = 0;
-    for (let i = 0; i < 30; i++) lobbies += h.send("c1", { t: "pick", character: "turtle" }).length;
-    expect(lobbies).toBe(14); // join used 1 of the 15 allowed this second
+    for (let i = 0; i < 45; i++) lobbies += h.send("c1", { t: "pick", character: "turtle" }).length;
+    expect(lobbies).toBe(CONFIG.NET_SERVER_MSG_MAX_PER_SEC - 1); // join used 1 of the allowed messages this second
     h.room.connect("x", h.now());
     let kicked = false;
     for (let sec = 0; sec < 7 && !kicked; sec++) {
-      for (let i = 0; i < 30; i++) kicked ||= closes(h.room.message("x", "junk", h.now())).length > 0;
+      for (let i = 0; i < 60; i++) kicked ||= closes(h.room.message("x", "junk", h.now())).length > 0;
       h.advance(1000);
     }
     expect(kicked).toBe(true);
@@ -291,11 +291,89 @@ describe("empty room", () => {
   it("is dead exactly 30s after the last human leaves", () => {
     const h = makeRoom();
     h.join("c1", "tok1");
-    expect(h.room.isDead(1e9)).toBe(false);
+    expect(h.room.isDead(CONFIG.NET_IDLE_ROOM_MS - 1)).toBe(false);
     const t = h.now();
     h.room.disconnect("c1", t);
     expect(h.room.needsTicking()).toBe(true);
     expect(h.room.isDead(t + 29_999)).toBe(false);
     expect(h.room.isDead(t + 30_000)).toBe(true);
+  });
+});
+
+describe("final review fixes", () => {
+  const finish = (h: ReturnType<typeof startedRoom>): Outgoing[] => {
+    let all: Outgoing[] = [];
+    for (let i = 0; i < 400 && !snaps(all).some((s) => s.phase === Phase.RESULTS); i++) all = all.concat(h.run(1000));
+    return all;
+  };
+
+  it("I1: rejoin during RESULTS replays matchEnd in the full snap", () => {
+    const h = startedRoom(2);
+    h.run(3100);
+    h.room.disconnect("c2", h.now());
+    finish(h);
+    const out = h.join("c9", "tok2");
+    const sn = msgsTo(out, "c9", "snap")[0] as Extract<ServerMsg, { t: "snap" }>;
+    expect(sn.phase).toBe(Phase.RESULTS);
+    expect(sn.events.map((e) => e.type)).toEqual(["matchEnd"]);
+    expect(sn.result).not.toBeNull();
+  });
+
+  it("I2: a friend who joined during RESULTS gets no start/snap on reconnect", () => {
+    const h = startedRoom(1);
+    finish(h);
+    h.join("c2", "tok2");
+    h.room.disconnect("c2", h.now());
+    const out = h.join("c3", "tok2");
+    expect(msgsTo(out, "c3", "start")).toEqual([]);
+    expect(msgsTo(out, "c3", "snap")).toEqual([]);
+    expect(lastLobby(out)!.phase).toBe(Phase.RESULTS);
+  });
+
+  it("I3: a silent connection stops steering after NET_SILENT_INPUT_MS and resumes on the next message", () => {
+    const h = startedRoom(1);
+    h.run(3100);
+    h.send("c1", { t: "in", seq: 7, dirX: 0.15, dirZ: 0, skill: false });
+    h.run(CONFIG.NET_SILENT_INPUT_MS - 200);
+    const moving = snaps(h.run(200)).pop()!.players[0]!;
+    expect(Math.abs(moving.vx)).toBeGreaterThan(0.01);
+    const later = snaps(h.run(500)).pop()!.players[0]!;
+    expect(later.alive).toBe(true);
+    expect(Math.abs(later.vx)).toBeLessThan(Math.abs(moving.vx));
+    expect(later.lastProcessedSeq).toBe(7);
+    // still connected (no bot takeover): the next message is honoured
+    h.send("c1", { t: "in", seq: 8, dirX: 0.15, dirZ: 0, skill: false });
+    const back = snaps(h.run(300)).pop()!.players[0]!;
+    expect(back.lastProcessedSeq).toBe(8);
+  });
+
+  it("I5: LOBBY and RESULTS rooms die after NET_IDLE_ROOM_MS without messages; matches do not", () => {
+    const h = makeRoom();
+    h.join("c1", "tok1");
+    const t = h.now();
+    expect(h.room.isDead(t + CONFIG.NET_IDLE_ROOM_MS - 1)).toBe(false);
+    expect(h.room.isDead(t + CONFIG.NET_IDLE_ROOM_MS)).toBe(true);
+    h.send("c1", { t: "pick", character: "turtle" });
+    h.advance(CONFIG.NET_IDLE_ROOM_MS - 1);
+    expect(h.room.isDead(h.now())).toBe(false);
+
+    const g = startedRoom(1);
+    g.run(5000);
+    expect(g.room.isDead(g.now() + CONFIG.NET_IDLE_ROOM_MS * 2)).toBe(false);
+    finish(g);
+    // the idle clock restarted when RESULTS began (within the last second of stepping)
+    expect(g.room.isDead(g.now() + CONFIG.NET_IDLE_ROOM_MS - 1000 - 1)).toBe(false);
+    expect(g.room.isDead(g.now() + CONFIG.NET_IDLE_ROOM_MS)).toBe(true);
+  });
+
+  it("M3: a conn the logic closes (FULL / IN_PROGRESS) leaves no ConnState behind", () => {
+    const h = startedRoom(2);
+    const conns = () => (h.room as unknown as { conns: Map<string, unknown> }).conns;
+    expect(closes(h.join("c8", "tokX"))).toEqual([{ close: "c8", code: "IN_PROGRESS" }]);
+    expect(conns().has("c8")).toBe(false);
+    const g = makeRoom();
+    for (let i = 1; i <= CONFIG.NET_MAX_HUMANS; i++) g.join(`c${i}`, `t${i}`);
+    expect(closes(g.join("c9", "tok9"))).toEqual([{ close: "c9", code: "FULL" }]);
+    expect((g.room as unknown as { conns: Map<string, unknown> }).conns.has("c9")).toBe(false);
   });
 });

@@ -184,6 +184,14 @@ const BASE = {
   NET_RESYNC_FRAC: 0.1,
   NET_HARD_RESYNC_MS: 250,
   NET_INPUT_MAX_QUEUE: 4,
+  /** Server-side per-connection message limit (looser than the client's NET_INPUT_MAX_PER_SEC to absorb jitter). */
+  NET_SERVER_MSG_MAX_PER_SEC: 30,
+  /** A connected player silent this long during a match gets zero input until they speak again. */
+  NET_SILENT_INPUT_MS: 2500,
+  /** LOBBY/RESULTS rooms with no member message for this long are retired. */
+  NET_IDLE_ROOM_MS: 600_000,
+  NET_HTTP_TIMEOUT_MS: 8000,
+  NET_CONNECT_TIMEOUT_MS: 8000,
   // --- Client match presentation ---
   GO_DISPLAY_MS: 600,
   SOLO_COUNTDOWN_MS: 3000,

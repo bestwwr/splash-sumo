@@ -108,4 +108,13 @@ describe("worker", () => {
     expect(msgs.some((m) => m.t === "error")).toBe(false);
     ws.close();
   });
+
+  it("M2: oversize message closes that conn with BAD_MESSAGE", async () => {
+    const code = await createRoom();
+    const { ws, waitFor } = await openWs(code, 1);
+    ws.send(JSON.stringify(join));
+    await waitFor((m) => m.t === "lobby");
+    ws.send(JSON.stringify({ t: "join", token: "x".repeat(2000), nickname: "a", character: "elephant" }));
+    expect(await waitFor((m) => m.t === "error")).toEqual({ t: "error", code: "BAD_MESSAGE" });
+  });
 });

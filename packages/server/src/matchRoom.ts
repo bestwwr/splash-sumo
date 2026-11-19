@@ -5,6 +5,8 @@ import { RoomLogic, type Outgoing } from "./room";
 
 const FLAG_KEY = "room";
 const CLOSE_CODE = 4000;
+const MAX_MSG_CHARS = 1024;
+const IDLE_CHECK_MS = 10_000;
 
 function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0]!;
@@ -18,6 +20,8 @@ export class MatchRoom extends DurableObject {
   private logic: RoomLogic | null = null;
   private readonly sockets = new Map<string, WebSocket>();
   private timer: ReturnType<typeof setInterval> | null = null;
+  /** Slow poll so an idle LOBBY/RESULTS room (no tick timer running) still notices it is dead. */
+  private idleTimer: ReturnType<typeof setInterval> | null = null;
 
   constructor(ctx: DurableObjectState, env: unknown) {
     super(ctx, env as never);
@@ -66,12 +70,39 @@ export class MatchRoom extends DurableObject {
   private onMessage(conn: string, data: unknown): void {
     if (!this.logic) return;
     let raw: unknown;
+    if (typeof data === "string" && data.length > MAX_MSG_CHARS) {
+      const ws = this.sockets.get(conn);
+      if (ws) this.dropConn(conn, ws, "BAD_MESSAGE");
+      return;
+    }
     try {
       raw = typeof data === "string" ? JSON.parse(data) : undefined;
     } catch {
       raw = undefined;
     }
-    this.deliver(this.logic.message(conn, raw, Date.now()));
+    try {
+      this.deliver(this.logic.message(conn, raw, Date.now()));
+    } catch {
+      this.failConn(conn);
+      return;
+    }
+    this.sync();
+  }
+
+  /** Close one conn with BAD_MESSAGE after an unexpected exception, keeping the logic consistent. */
+  private failConn(conn: string): void {
+    const ws = this.sockets.get(conn);
+    if (ws) this.dropConn(conn, ws, "BAD_MESSAGE");
+  }
+
+  private dropConn(conn: string, ws: WebSocket, code: ErrorCode): void {
+    this.sockets.delete(conn);
+    this.closeWith(ws, code);
+    try {
+      if (this.logic) this.deliver(this.logic.disconnect(conn, Date.now()));
+    } catch {
+      /* logic is already inconsistent; the timer/destroy path will clean up */
+    }
     this.sync();
   }
 
@@ -85,7 +116,12 @@ export class MatchRoom extends DurableObject {
       /* already closed */
     }
     if (!this.logic) return;
-    this.deliver(this.logic.disconnect(conn, Date.now()));
+    try {
+      this.deliver(this.logic.disconnect(conn, Date.now()));
+    } catch {
+      this.failAll();
+      return;
+    }
     this.sync();
   }
 
@@ -134,6 +170,7 @@ export class MatchRoom extends DurableObject {
       void this.destroy();
       return;
     }
+    if (logic && this.idleTimer === null) this.idleTimer = setInterval(() => this.sync(), IDLE_CHECK_MS);
     const need = logic?.needsTicking() === true;
     if (need && this.timer === null) {
       this.timer = setInterval(() => this.onTick(), CONFIG.TICK_MS);
@@ -146,14 +183,35 @@ export class MatchRoom extends DurableObject {
   private onTick(): void {
     const logic = this.logic;
     if (!logic) return this.sync();
-    this.deliver(logic.tick(Date.now()));
-    this.sync();
+    try {
+      this.deliver(logic.tick(Date.now()));
+      this.sync();
+    } catch {
+      // Don't loop the same exception at 30 Hz: end the room.
+      this.failAll();
+    }
   }
 
-  private async destroy(): Promise<void> {
+  private failAll(): void {
+    void this.destroy().catch(() => undefined);
+  }
+
+  /** Close every socket (joined or not) and free the room code. */
+  async destroy(): Promise<void> {
     if (this.timer !== null) clearInterval(this.timer);
+    if (this.idleTimer !== null) clearInterval(this.idleTimer);
     this.timer = null;
+    this.idleTimer = null;
     this.logic = null;
+    const all = [...this.sockets.values()];
+    this.sockets.clear();
+    for (const ws of all) {
+      try {
+        ws.close(CLOSE_CODE, "NOT_FOUND");
+      } catch {
+        /* already closed */
+      }
+    }
     await this.ctx.storage.delete(FLAG_KEY);
   }
 }
