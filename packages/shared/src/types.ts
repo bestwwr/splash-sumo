@@ -91,6 +91,14 @@ export interface LavaRock {
   landAtMs: number;
 }
 
+/** Eruption event: phase 0 pending, 1 telegraphed, 2 done. */
+export interface Eruption {
+  atMs: number;
+  impactAtMs: number;
+  targets: { x: number; z: number }[];
+  phase: 0 | 1 | 2;
+}
+
 export interface MatchState {
   phase: Phase;
   seed: number;
@@ -107,6 +115,7 @@ export interface MatchState {
   suddenDeath: boolean;
   rocks: LavaRock[];
   nextRockId: number;
+  eruption: Eruption;
   /** Set when the match ends. */
   result: MatchResult | null;
 }
@@ -142,6 +151,8 @@ export type SimEvent =
   | { type: "slamImpact"; playerId: string; x: number; z: number; hitIds: string[] }
   | { type: "lavaRockThrown"; fromId: string; targetX: number; targetZ: number; landAtMs: number }
   | { type: "rockImpact"; fromId: string; x: number; z: number; hitIds: string[] }
+  | { type: "eruptionIncoming"; targets: { x: number; z: number }[]; impactAtMs: number }
+  | { type: "eruptionImpact"; targets: { x: number; z: number }[]; hitIds: string[] }
   | { type: "suddenDeath" }
   | { type: "edgeShrink"; ring: number }
   | { type: "matchEnd"; result: MatchResult };

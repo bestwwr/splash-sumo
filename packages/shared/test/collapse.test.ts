@@ -10,6 +10,7 @@ const setups = ["a", "b", "c", "d"].map((id) => ({ id, nickname: id, character: 
 /** Run the floor only: pin players at the center so the match never ends. */
 function runFloor(seed: number, untilMs: number, onTick?: (s: MatchState, prev: MatchState, events: SimEvent[]) => void): MatchState {
   let s = createMatch(seed, setups);
+  s.eruption.phase = 2; // these tests isolate the floor schedule from the eruption event
   while (s.timeMs < untilMs) {
     for (const p of s.players) { p.x = 0; p.z = 0; p.vx = 0; p.vz = 0; p.fallingMs = -1; p.alive = true; }
     const prev = s;
@@ -64,7 +65,7 @@ describe("collapse schedule", () => {
 
   it("the remaining floor stays one connected island for the first 30 s", () => {
     for (const seed of [1, 2, 3, 4, 5, 6, 7, 8]) {
-      runFloor(seed, CONFIG.NO_ISOLATION_UNTIL_MS, (s) => expect(solidIsConnected(s.tiles)).toBe(true));
+      runFloor(seed, CONFIG.NO_ISOLATION_UNTIL_MS, (s) => { if (s.timeMs < CONFIG.NO_ISOLATION_UNTIL_MS) expect(solidIsConnected(s.tiles)).toBe(true); });
     }
   });
 

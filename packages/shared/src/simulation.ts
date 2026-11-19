@@ -10,8 +10,10 @@ import { CONFIG } from "./config";
 import type { CharacterId } from "./characters";
 import { createTiles, isSupportive, updateCollapse } from "./collapse";
 import { hexKey, worldToHex } from "./hex";
+import { nextRange } from "./rng";
 import { applyMovement, isDashing, resolveCollisions } from "./physics";
 import { updateSkills } from "./skills";
+import { updateEruption } from "./eruption";
 import { updateRocks, updateSpirits } from "./spirits";
 import {
   EliminationCause,
@@ -73,10 +75,12 @@ export function createMatch(seed: number, setups: PlayerSetup[]): MatchState {
       eliminatedById: null,
     };
   });
+  const rngState = { rng: seed >>> 0 };
+  const eruptionAtMs = nextRange(rngState, CONFIG.ERUPTION_MIN_MS, CONFIG.ERUPTION_MAX_MS);
   return {
     phase: Phase.PLAYING,
     seed: seed >>> 0,
-    rng: seed >>> 0,
+    rng: rngState.rng,
     tick: 0,
     timeMs: 0,
     players,
@@ -87,6 +91,7 @@ export function createMatch(seed: number, setups: PlayerSetup[]): MatchState {
     suddenDeath: false,
     rocks: [],
     nextRockId: 1,
+    eruption: { atMs: eruptionAtMs, impactAtMs: 0, targets: [], phase: 0 },
     result: null,
   };
 }
@@ -97,6 +102,7 @@ export function cloneState(s: MatchState): MatchState {
     players: s.players.map((p) => ({ ...p })),
     tiles: s.tiles.map((t) => ({ ...t })),
     rocks: s.rocks.map((r) => ({ ...r })),
+    eruption: { ...s.eruption, targets: s.eruption.targets.map((t) => ({ ...t })) },
     result: s.result
       ? { ...s.result, placements: s.result.placements.map((p) => ({ ...p })) }
       : null,
@@ -119,7 +125,7 @@ export function isSupported(index: Map<string, Tile>, x: number, z: number): boo
 function eliminate(p: Player, nowMs: number, events: SimEvent[]): void {
   p.alive = false;
   p.eliminatedAtMs = nowMs;
-  const credited = p.lastHitById !== null && nowMs - p.lastHitAtMs <= CONFIG.SHOVE_CREDIT_MS;
+  const credited = (p.lastHitById !== null || p.lastHitCause === EliminationCause.ERUPTION) && nowMs - p.lastHitAtMs <= CONFIG.SHOVE_CREDIT_MS;
   p.eliminatedCause = credited ? p.lastHitCause : EliminationCause.FLOOR;
   p.spiritAngle = Math.atan2(p.z, p.x);
   p.eliminatedById = credited ? p.lastHitById : null;
@@ -176,6 +182,7 @@ export function step(prev: MatchState, inputs: Inputs): { state: MatchState; eve
   events.push(...resolveCollisions(state.players, now));
 
   // 3b) Event impulses: lava rocks landing
+  updateEruption(state, events);
   updateRocks(state, events);
 
   // 4) Tile states

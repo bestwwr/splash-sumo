@@ -80,6 +80,15 @@ const BASE = {
   ROCK_HIT_RADIUS: 0.9,
   ROCK_STAGGER_MS: 200,
 
+  // --- Eruption (SPEC §2.4) ---
+  ERUPTION_MIN_MS: 30_000,
+  ERUPTION_MAX_MS: 50_000,
+  ERUPTION_TELEGRAPH_MS: 1500,
+  ERUPTION_TARGETS_MIN: 3,
+  ERUPTION_TARGETS_MAX: 4,
+  ERUPTION_RADIUS: 1.5,
+  ERUPTION_STUN_MS: 200,
+
   // --- Elimination (A.2) ---
   FALL_ELIMINATE_MS: 500,
 
@@ -103,6 +112,8 @@ export const CONFIG = {
   REFERENCE_SHOVE_SPEED,
   /** Rock knockback: a flat 30% of a reference shove (not scaled by power/endurance). */
   ROCK_KNOCK_SPEED: 0.3 * REFERENCE_SHOVE_SPEED,
+  /** Eruption knockback: a flat 40% of a reference shove. */
+  ERUPTION_KNOCK_SPEED: 0.4 * REFERENCE_SHOVE_SPEED,
 } as const;
 
 export type Config = typeof CONFIG;

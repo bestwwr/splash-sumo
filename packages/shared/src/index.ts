@@ -6,5 +6,6 @@ export * from "./types";
 export * from "./physics";
 export * from "./skills";
 export * from "./spirits";
+export * from "./eruption";
 export * from "./collapse";
 export * from "./simulation";
