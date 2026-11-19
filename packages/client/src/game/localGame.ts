@@ -57,6 +57,7 @@ export function startLocalGame(gs: GameScene, controls: Controls, hud: Hud, opts
   const ai = createDummyAI(seed ^ 0x9e3779b9);
   const players: PlayersView = createPlayers(state.players, LOCAL_ID);
   gs.scene.add(players.group);
+  gs.skillFx.reset();
   hud.setPlayers(state.players, LOCAL_ID);
   hud.setVisible(true);
   hud.hideResults();
@@ -203,6 +204,7 @@ export function startLocalGame(gs: GameScene, controls: Controls, hud: Hud, opts
     running = false;
     cancelAnimationFrame(raf);
     gs.scene.remove(players.group);
+    gs.skillFx.reset();
   }
   function restart() {
     stop();

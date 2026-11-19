@@ -10,12 +10,22 @@ import { SLOT_COLORS } from "./fighters";
 export interface SkillFx {
   onEvent(e: SimEvent, state: MatchState): void;
   update(state: MatchState, renderTimeMs: number, dt: number): void;
+  /** Hide everything and drop in-flight bursts. Call on match start and stop. */
+  reset(): void;
 }
 
 const Y = 0.12; // just above the tile surface
 const MAX_ERUPTION = 6;
 const MAX_ROCKS = 8;
 const BURST_LIFE = 0.45;
+/**
+ * Spirits are drawn at a smaller ring than the sim's SPIRIT_RING_RADIUS (7.2) so they stay
+ * inside the camera's fit radius (6.7) on every aspect. Rocks launch from the drawn orb.
+ */
+const SPIRIT_VISUAL_RADIUS = 5.9;
+const SPIRIT_SCALE = SPIRIT_VISUAL_RADIUS / CONFIG.SPIRIT_RING_RADIUS;
+const ORB_Y = 1.0;
+const slotColors = SLOT_COLORS.map((c) => new THREE.Color(c));
 
 const basic = (color: string, opacity: number, additive = false) =>
   new THREE.MeshBasicMaterial({
@@ -69,8 +79,8 @@ export function createSkillFx(scene: THREE.Scene): SkillFx {
   function ensurePlayers(n: number, state: MatchState) {
     while (per.length < n) {
       const p = state.players[per.length]!;
-      const col = SLOT_COLORS[p.slot % 4] ?? "#ffffff";
-      const orbMat = basic(col, 0.55, true);
+      void p;
+      const orbMat = basic("#ffffff", 0.55, true);
       const entry: PerPlayer = {
         slamRing: add(new THREE.Mesh(ringGeo, basic("#ffb347", 0.95, true))),
         slamFull: add(new THREE.Mesh(ringGeo, basic("#ff6a2a", 0.35, true))),
@@ -143,6 +153,10 @@ export function createSkillFx(scene: THREE.Scene): SkillFx {
     const t = renderTimeMs / 1000;
     ensurePlayers(state.players.length, state);
 
+    for (let i = state.players.length; i < per.length; i++) {
+      const f = per[i]!;
+      f.slamRing.visible = f.slamFull.visible = f.streak.visible = f.glow.visible = f.orb.visible = f.orbCore.visible = false;
+    }
     for (let i = 0; i < state.players.length; i++) {
       const p = state.players[i]!;
       const f = per[i]!;
@@ -189,7 +203,10 @@ export function createSkillFx(scene: THREE.Scene): SkillFx {
       f.orb.visible = f.orbCore.visible = spirit;
       if (spirit) {
         const sp = spiritPosition(p);
-        const bob = 1.3 + Math.sin(t * 3 + i) * 0.15;
+        sp.x *= SPIRIT_SCALE;
+        sp.z *= SPIRIT_SCALE;
+        f.orbMat.color.copy(slotColors[p.slot % 4]!);
+        const bob = ORB_Y + Math.sin(t * 3 + i) * 0.15;
         const ready = p.rockCooldownMs <= 0;
         const s = ready ? 0.42 : 0.3;
         f.orb.position.set(sp.x, bob, sp.z);
@@ -208,9 +225,11 @@ export function createSkillFx(scene: THREE.Scene): SkillFx {
       const on = !!r && k >= 0 && k <= 1;
       slot.rock.visible = slot.shadow.visible = slot.mark.visible = on;
       if (on && r) {
-        const x = r.fromX + (r.targetX - r.fromX) * k;
-        const z = r.fromZ + (r.targetZ - r.fromZ) * k;
-        slot.rock.position.set(x, Y + 0.3 + 3.2 * 4 * k * (1 - k), z);
+        const fx0 = r.fromX * SPIRIT_SCALE;
+        const fz0 = r.fromZ * SPIRIT_SCALE;
+        const x = fx0 + (r.targetX - fx0) * k;
+        const z = fz0 + (r.targetZ - fz0) * k;
+        slot.rock.position.set(x, Y + 0.3 + (ORB_Y - 0.3) * (1 - k) + 3.2 * 4 * k * (1 - k), z);
         slot.rock.rotation.x = t * 8;
         slot.rock.rotation.z = t * 5;
         // Landing shadow grows as the rock comes down.
@@ -262,8 +281,22 @@ export function createSkillFx(scene: THREE.Scene): SkillFx {
     }
   }
 
+  function reset() {
+    for (const f of per) {
+      f.slamRing.visible = f.slamFull.visible = f.streak.visible = f.glow.visible = f.orb.visible = f.orbCore.visible = false;
+    }
+    for (const r of rocks) r.rock.visible = r.shadow.visible = r.mark.visible = false;
+    for (const e of eruptions) e.fill.visible = e.ring.visible = false;
+    for (const b of bursts) {
+      b.mesh.visible = false;
+      burstFree.push(b);
+    }
+    bursts.length = 0;
+  }
+
   return {
     onEvent,
     update,
+    reset,
   };
 }
