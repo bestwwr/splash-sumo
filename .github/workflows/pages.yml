@@ -31,7 +31,8 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm build
         env:
-          VITE_APP_ENV: prod
+          # PR builds are not deployed; only real deploys are 'prod' (the build fails there if SERVER_URL is unset).
+          VITE_APP_ENV: ${{ github.event_name != 'pull_request' && 'prod' || 'pr' }}
           VITE_SERVER_URL: ${{ vars.SERVER_URL }}
       - if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
