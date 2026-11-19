@@ -54,6 +54,15 @@ export const CONFIG = {
   /** A fall within this window after being shoved is credited to the shover. */
   SHOVE_CREDIT_MS: 2500,
 
+  // --- Skills ---
+  SLAM_WINDUP_MS: 400,
+  SLAM_RADIUS: 2.0,
+  SLAM_COOLDOWN_MS: 8000,
+  /** Base outward speed of slam knockback, before power/endurance multipliers. */
+  SLAM_KNOCK_SPEED: 4.5,
+  DASH_COOLDOWN_MS: 6000,
+  SHELL_COOLDOWN_MS: 10_000,
+
   // --- Elimination (A.2) ---
   FALL_ELIMINATE_MS: 500,
 

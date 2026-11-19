@@ -2,7 +2,7 @@
  * Plain-data simulation state. Mirrors the Colyseus schema in SPEC §3.2 so the
  * server can copy fields across 1:1 in Milestone 2.
  */
-import type { CharacterId } from "./characters";
+import type { CharacterId, SkillId } from "./characters";
 
 export enum TileState {
   SOLID = 0,
@@ -24,6 +24,12 @@ export enum EliminationCause {
   FLOOR = 2,
   ERUPTION = 3,
   LAVA_ROCK = 4,
+}
+
+export enum SkillPhase {
+  NONE = 0,
+  WINDUP = 1,
+  ACTIVE = 2,
 }
 
 export interface Tile {
@@ -54,6 +60,15 @@ export interface Player {
   lastHitById: string | null;
   lastHitAtMs: number;
   lastProcessedSeq: number;
+  /** ms until the skill can be used again; 0 = ready. */
+  skillCooldownMs: number;
+  skillPhase: SkillPhase;
+  /** Time left in the current skill phase (ms). */
+  skillPhaseMs: number;
+  /** Last tick's skill input, for press (rising-edge) detection. */
+  skillHeld: boolean;
+  dashDirX: number;
+  dashDirZ: number;
   eliminatedCause: EliminationCause;
   eliminatedAtMs: number;
   eliminatedById: string | null;
@@ -104,6 +119,8 @@ export type SimEvent =
   | { type: "hit"; attackerId: string; victimId: string; strength: number }
   | { type: "fall"; playerId: string }
   | { type: "eliminated"; playerId: string; cause: EliminationCause; byId: string | null }
+  | { type: "skillUsed"; playerId: string; skill: SkillId }
+  | { type: "slamImpact"; playerId: string; x: number; z: number; hitIds: string[] }
   | { type: "suddenDeath" }
   | { type: "edgeShrink"; ring: number }
   | { type: "matchEnd"; result: MatchResult };

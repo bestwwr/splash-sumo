@@ -3,7 +3,7 @@
  */
 import { CONFIG } from "./config";
 import { enduranceMult, maxSpeed, powerMult } from "./characters";
-import type { Player, PlayerInput, SimEvent } from "./types";
+import { SkillPhase, type Player, PlayerInput, SimEvent } from "./types";
 
 /** Clamp an input vector to length ≤ 1 and sanitize NaN/Infinity (§2.4, §3.7). */
 export function clampInput(dirX: number, dirZ: number): { dirX: number; dirZ: number } {
@@ -25,7 +25,7 @@ function approach(rate: number, dtSec: number): number {
  */
 export function applyMovement(p: Player, input: PlayerInput | undefined, dtMs: number): void {
   const dt = dtMs / 1000;
-  const stunned = p.hitStunMs > 0 || p.fallingMs >= 0;
+  const stunned = p.hitStunMs > 0 || p.fallingMs >= 0 || p.skillPhase === SkillPhase.WINDUP;
 
   if (stunned) {
     const k = approach(CONFIG.STUN_DECAY_RATE, dt);
@@ -45,6 +45,28 @@ export function applyMovement(p: Player, input: PlayerInput | undefined, dtMs: n
   p.x += p.vx * dt;
   p.z += p.vz * dt;
   if (p.hitStunMs > 0) p.hitStunMs = Math.max(0, p.hitStunMs - dtMs);
+}
+
+/** Push `p` directly away from a point at `speed`, with hit-stun and shove credit. */
+export function applyRadialImpulse(
+  p: Player,
+  fromX: number,
+  fromZ: number,
+  speed: number,
+  stunMs: number,
+  byId: string | null,
+  nowMs: number,
+): void {
+  const dx = p.x - fromX;
+  const dz = p.z - fromZ;
+  const d = Math.hypot(dx, dz);
+  const nx = d > 1e-6 ? dx / d : 1;
+  const nz = d > 1e-6 ? dz / d : 0;
+  p.vx += nx * speed;
+  p.vz += nz * speed;
+  p.hitStunMs = stunMs;
+  p.lastHitById = byId;
+  p.lastHitAtMs = nowMs;
 }
 
 /**

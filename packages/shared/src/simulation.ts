@@ -3,7 +3,7 @@
  *
  *   step(state, inputs) → { state, events }     (pure: input state is not mutated)
  *
- * Tick order: apply inputs → (skills: M3) → integrate velocity → player-player
+ * Tick order: apply inputs → skills → integrate velocity → player-player
  * collisions → (event impulses: M3) → tile states → support/eliminations → win.
  */
 import { CONFIG } from "./config";
@@ -11,9 +11,11 @@ import type { CharacterId } from "./characters";
 import { createTiles, isSupportive, updateCollapse } from "./collapse";
 import { hexKey, worldToHex } from "./hex";
 import { applyMovement, resolveCollisions } from "./physics";
+import { updateSkills } from "./skills";
 import {
   EliminationCause,
   Phase,
+  SkillPhase,
   type Inputs,
   type MatchResult,
   type MatchState,
@@ -56,6 +58,12 @@ export function createMatch(seed: number, setups: PlayerSetup[]): MatchState {
       lastHitById: null,
       lastHitAtMs: -Infinity,
       lastProcessedSeq: 0,
+      skillCooldownMs: 0,
+      skillPhase: SkillPhase.NONE,
+      skillPhaseMs: 0,
+      skillHeld: false,
+      dashDirX: 0,
+      dashDirZ: 0,
       eliminatedCause: EliminationCause.NONE,
       eliminatedAtMs: -1,
       eliminatedById: null,
@@ -141,12 +149,18 @@ export function step(prev: MatchState, inputs: Inputs): { state: MatchState; eve
   state.timeMs = (state.tick * 1000) / CONFIG.TICK_HZ; // exact at whole seconds
   const now = state.timeMs;
 
-  // 1) Inputs + 2) integrate velocity
+  // 1) Inputs
   for (const p of state.players) {
     if (!p.alive) continue;
     const input = inputs[p.id];
     if (input && input.seq > p.lastProcessedSeq) p.lastProcessedSeq = input.seq;
-    applyMovement(p, input, dtMs);
+  }
+
+  // 2) Skills/cooldowns, then integrate velocity
+  updateSkills(state, inputs, events);
+  for (const p of state.players) {
+    if (!p.alive) continue;
+    applyMovement(p, inputs[p.id], dtMs);
   }
 
   // 3) Player-player collisions (shove)

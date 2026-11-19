@@ -1,5 +1,5 @@
 /**
- * Characters (A.5). Stats are 1–5 and total 10. Skills arrive in Milestone 3.
+ * Characters (A.5). Stats are 1–5 and total 10. Skills are in skills.ts.
  */
 import { CONFIG } from "./config";
 
@@ -15,6 +15,14 @@ export const CHARACTERS: Record<CharacterId, { name: string; stats: CharacterSta
   elephant: { name: "Elephant", stats: { power: 5, agility: 2, endurance: 3 } },
   monkey: { name: "Monkey", stats: { power: 2, agility: 5, endurance: 3 } },
   turtle: { name: "Turtle", stats: { power: 3, agility: 2, endurance: 5 } },
+};
+
+export type SkillId = "slam" | "dash" | "shell";
+
+export const SKILL_OF: Record<CharacterId, SkillId> = {
+  elephant: "slam",
+  monkey: "dash",
+  turtle: "shell",
 };
 
 export const CHARACTER_IDS: readonly CharacterId[] = ["elephant", "monkey", "turtle"];
