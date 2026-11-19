@@ -84,3 +84,11 @@ Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~40 s): 200 seeded 4-bot 
 
 ## Toolchain
 - Node 26, pnpm 12 workspaces, TypeScript 7 (`strict`, `noUncheckedIndexedAccess`), Vite 8, Vitest 5, three r187.
+
+### D-SQP-2 · Fighter balance deferred to the playtest
+- **Measured (600 matches, 4 Hard bots):** Elephant 13.7%, Monkey 68.0%, Turtle 18.4% of wins. Design target is 30–36% each.
+- **Why not tuned now:** every config that hits the target either changes spec-fixed values (dash ×1.5, shell reflects at full force) or makes slam/shell very swingy.
+- **Decision (PO, 2026-11-19):** keep the current spec values for the first playtest. `test/sim/balance.sim.test.ts` prints shares instead of asserting the target. Revisit with playtest feedback; the leading candidate is a Monkey nerf (dash cooldown 6→8 s or distance 4→3.5 m).
+
+### D-SQP-3 · Arenas: volcano first, data-driven
+- **Decision (PO, 2026-11-19):** ship only the volcano (lava) arena now. The map picker shows other arenas as "coming soon" slots. Arenas are defined as data so new ones can be added later without touching the screens.
