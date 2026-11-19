@@ -27,3 +27,7 @@ build/
 
 # Brainstorm mockups
 .superpowers/
+
+# Staging client build (served by the staging Worker)
+packages/client/dist-staging/
+.wrangler/

@@ -4,10 +4,13 @@
   "packageManager": "pnpm@12.21.0",
   "type": "module",
   "scripts": {
-    "dev": "pnpm --filter @lava-sumo/client dev",
+    "dev": "pnpm -r --parallel --filter @lava-sumo/client --filter @lava-sumo/server dev",
     "build": "pnpm -r build",
     "test": "pnpm -r test",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm -r typecheck",
+    "build:staging": "VITE_APP_ENV=staging VITE_SERVER_URL=self pnpm --filter @lava-sumo/client exec vite build --outDir dist-staging --emptyOutDir",
+    "deploy:staging": "pnpm build:staging && pnpm --filter @lava-sumo/server exec wrangler deploy --env staging",
+    "deploy:prod": "pnpm --filter @lava-sumo/server exec wrangler deploy"
   },
   "devDependencies": {
     "typescript": "^7.0.2",
