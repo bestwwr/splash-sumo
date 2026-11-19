@@ -8,6 +8,7 @@ import { defaultRandomNick, loadProfile, saveProfile, type Profile } from "./met
 import { createSplashScreen } from "./ui/screens/splash";
 import { createHomeScreen } from "./ui/screens/home";
 import { createInventoryScreen } from "./ui/screens/inventory";
+import { createSetupScreen } from "./ui/screens/setup";
 
 const ID_KEY = "lavasumo.anonId";
 
@@ -71,7 +72,11 @@ const home = createHomeScreen(ui, {
     profile = p;
     saveProfile(profileStore, p);
   },
-  onQuickPlay: startMatch, // Task 12/13 replace this with the Setup screen / Quick Play loop
+  onQuickPlay: () => {
+    home.hide();
+    homeActive = false;
+    setup.show();
+  },
   onInventory: () => {
     home.hide();
     homeActive = false;
@@ -88,6 +93,22 @@ const inventory = createInventoryScreen(ui, {
     inventory.hide();
     home.show();
     homeActive = true;
+  },
+});
+const setup = createSetupScreen(ui, {
+  getProfile: () => profile,
+  setProfile: (p) => {
+    profile = p;
+    saveProfile(profileStore, p);
+  },
+  onBack: () => {
+    setup.hide();
+    home.show();
+    homeActive = true;
+  },
+  onFight: () => {
+    setup.hide();
+    startMatch(); // Task 13 replaces this with the Quick Play loop
   },
 });
 const splash = createSplashScreen(ui, {

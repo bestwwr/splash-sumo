@@ -1,5 +1,5 @@
 import { CHARACTERS, SKILL_OF } from "@lava-sumo/shared";
-import { CATALOG, SKILL_INFO, type CatalogItem } from "../../meta/catalog";
+import { CATALOG, FIGHTER_EMOJI, SKILL_INFO, type CatalogItem } from "../../meta/catalog";
 import { fightersForGrid, type Profile } from "../../meta/profile";
 
 export interface InventoryDeps {
@@ -13,8 +13,7 @@ export interface InventoryScreen {
   hide(): void;
 }
 
-const EMOJI: Record<string, string> = { elephant: "🐘", monkey: "🐒", turtle: "🐢" };
-const emojiOf = (item: CatalogItem) => (item.fighterId ? (EMOJI[item.fighterId] ?? "❔") : "❔");
+const emojiOf = (item: CatalogItem) => (item.fighterId ? FIGHTER_EMOJI[item.fighterId] : "❔");
 
 export function createInventoryScreen(root: HTMLElement, deps: InventoryDeps): InventoryScreen {
   const el = document.createElement("div");

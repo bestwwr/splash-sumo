@@ -50,3 +50,5 @@ export function arenasForPicker(minCells = 3): Array<ArenaInfo | null> {
   while (cells.length < minCells) cells.push(null);
   return cells;
 }
+
+export const FIGHTER_EMOJI: Record<CharacterId, string> = { elephant: "🐘", monkey: "🐒", turtle: "🐢" };
