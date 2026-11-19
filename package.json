@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "pnpm --filter @lava-sumo/client dev",
     "build": "pnpm -r build",
-    "test": "pnpm --filter @lava-sumo/shared test",
+    "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck"
   },
   "devDependencies": {

@@ -4,6 +4,7 @@ import { createScene } from "./render/scene";
 import { createControls } from "./input/input";
 import { createHud } from "./ui/hud";
 import { startLocalGame } from "./game/localGame";
+import { sanitizeNickname } from "./meta/profile";
 
 const NICK_KEY = "lavasumo.nickname";
 const ID_KEY = "lavasumo.anonId";
@@ -19,11 +20,6 @@ function storage(key: string, value?: string): string | null {
 
 /** Anonymous ID for analytics (D8). Generated once per browser. */
 if (!storage(ID_KEY)) storage(ID_KEY, crypto.randomUUID?.() ?? String(Math.random()).slice(2));
-
-function sanitizeNickname(raw: string): string {
-  const clean = raw.replace(/[^\p{L}\p{N} _.-]/gu, "").trim().slice(0, 12);
-  return clean || `Player${Math.floor(100 + Math.random() * 900)}`;
-}
 
 const canvas = document.querySelector<HTMLCanvasElement>("#game")!;
 const ui = document.querySelector<HTMLDivElement>("#ui")!;
