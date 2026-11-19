@@ -2,7 +2,7 @@
  * Custom 2D circle physics on the XZ plane (SPEC §3.1, D3).
  */
 import { CONFIG } from "./config";
-import { enduranceMult, maxSpeed, powerMult } from "./characters";
+import { enduranceMult, maxSpeed, powerMult, SKILL_OF } from "./characters";
 import { SkillPhase, type Player, PlayerInput, SimEvent } from "./types";
 
 /** Clamp an input vector to length ≤ 1 and sanitize NaN/Infinity (§2.4, §3.7). */
@@ -25,6 +25,17 @@ function approach(rate: number, dtSec: number): number {
  */
 export function applyMovement(p: Player, input: PlayerInput | undefined, dtMs: number): void {
   const dt = dtMs / 1000;
+  if (isDashing(p)) {
+    // Dash drives movement: constant speed along the locked direction, input ignored.
+    const speed = CONFIG.DASH_DISTANCE / (CONFIG.DASH_DURATION_MS / 1000);
+    const moveSec = Math.min(dtMs, p.skillPhaseMs) / 1000;
+    p.vx = p.dashDirX * speed;
+    p.vz = p.dashDirZ * speed;
+    p.x += p.vx * moveSec;
+    p.z += p.vz * moveSec;
+    p.skillPhaseMs = Math.max(0, p.skillPhaseMs - dtMs);
+    return;
+  }
   const stunned = p.hitStunMs > 0 || p.fallingMs >= 0 || p.skillPhase === SkillPhase.WINDUP;
 
   if (stunned) {
@@ -45,6 +56,11 @@ export function applyMovement(p: Player, input: PlayerInput | undefined, dtMs: n
   p.x += p.vx * dt;
   p.z += p.vz * dt;
   if (p.hitStunMs > 0) p.hitStunMs = Math.max(0, p.hitStunMs - dtMs);
+}
+
+/** True while a monkey's dash is actively driving its movement. */
+export function isDashing(p: Player): boolean {
+  return p.skillPhase === SkillPhase.ACTIVE && p.skillPhaseMs > 0 && SKILL_OF[p.character] === "dash";
 }
 
 /** Push `p` directly away from a point at `speed`, with hit-stun and shove credit. */
@@ -109,12 +125,22 @@ export function resolveCollision(a: Player, b: Player, nowMs: number): SimEvent[
   b.vz += (mean - bN) * nz;
 
   // 4) Shove impulses, both directions.
-  const impulseOnB = (CONFIG.BASE_KNOCK * powerMult(a.character) * effective) / enduranceMult(b.character);
-  const impulseOnA = (CONFIG.BASE_KNOCK * powerMult(b.character) * effective) / enduranceMult(a.character);
+  const aDash = isDashing(a);
+  const bDash = isDashing(b);
+  const impulseOnB = (CONFIG.BASE_KNOCK * powerMult(a.character) * (aDash ? CONFIG.DASH_KNOCK_MULT : 1) * effective) / enduranceMult(b.character);
+  const impulseOnA = (CONFIG.BASE_KNOCK * powerMult(b.character) * (bDash ? CONFIG.DASH_KNOCK_MULT : 1) * effective) / enduranceMult(a.character);
   b.vx += nx * impulseOnB;
   b.vz += nz * impulseOnB;
   a.vx -= nx * impulseOnA;
   a.vz -= nz * impulseOnA;
+
+  // A dash ends on first contact (after the boosted shove above).
+  for (const p of [a, b]) {
+    if (isDashing(p)) {
+      p.skillPhase = SkillPhase.NONE;
+      p.skillPhaseMs = 0;
+    }
+  }
 
   a.hitStunMs = CONFIG.HIT_STUN_MS;
   b.hitStunMs = CONFIG.HIT_STUN_MS;

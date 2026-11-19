@@ -10,7 +10,7 @@ import { CONFIG } from "./config";
 import type { CharacterId } from "./characters";
 import { createTiles, isSupportive, updateCollapse } from "./collapse";
 import { hexKey, worldToHex } from "./hex";
-import { applyMovement, resolveCollisions } from "./physics";
+import { applyMovement, isDashing, resolveCollisions } from "./physics";
 import { updateSkills } from "./skills";
 import {
   EliminationCause,
@@ -174,7 +174,8 @@ export function step(prev: MatchState, inputs: Inputs): { state: MatchState; eve
   for (const p of state.players) {
     if (!p.alive) continue;
     if (p.fallingMs < 0) {
-      if (!isSupported(index, p.x, p.z)) {
+      // A dashing monkey is airborne: skip the support check until the dash ends.
+      if (!isDashing(p) && !isSupported(index, p.x, p.z)) {
         p.fallingMs = 0;
         events.push({ type: "fall", playerId: p.id });
       }

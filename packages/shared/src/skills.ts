@@ -3,8 +3,8 @@
  * movement integration. Pure: only mutates the (already cloned) state.
  */
 import { CONFIG } from "./config";
-import { enduranceMult, powerMult, SKILL_OF, type SkillId } from "./characters";
-import { applyRadialImpulse } from "./physics";
+import { enduranceMult, maxSpeed, powerMult, SKILL_OF, type SkillId } from "./characters";
+import { applyRadialImpulse, clampInput } from "./physics";
 import { SkillPhase, type Inputs, type MatchState, type Player, type SimEvent } from "./types";
 
 const EPS = 1e-6;
@@ -55,8 +55,18 @@ export function updateSkills(state: MatchState, inputs: Inputs, events: SimEvent
           p.skillPhaseMs = 0;
           slamImpact(state, p, events);
         }
+      } else if (skill === "dash") {
+        // applyMovement consumes skillPhaseMs while moving; finish once it runs out.
+        // (A contact during the dash already reset the phase in resolveCollision.)
+        if (p.skillPhaseMs <= EPS) {
+          p.skillPhase = SkillPhase.NONE;
+          p.skillPhaseMs = 0;
+          const vmax = maxSpeed(p.character);
+          p.vx = p.dashDirX * vmax;
+          p.vz = p.dashDirZ * vmax;
+        }
       } else {
-        // next task: dash / shell phases
+        // next task: shell phases
       }
     }
 
@@ -71,8 +81,21 @@ export function updateSkills(state: MatchState, inputs: Inputs, events: SimEvent
       if (skill === "slam") {
         p.skillPhase = SkillPhase.WINDUP;
         p.skillPhaseMs = CONFIG.SLAM_WINDUP_MS;
+      } else if (skill === "dash") {
+        const { dirX, dirZ } = clampInput(input?.dirX ?? 0, input?.dirZ ?? 0);
+        const len = Math.hypot(dirX, dirZ);
+        if (len > EPS) {
+          p.dashDirX = dirX / len;
+          p.dashDirZ = dirZ / len;
+          p.facing = Math.atan2(dirX, dirZ);
+        } else {
+          p.dashDirX = Math.sin(p.facing);
+          p.dashDirZ = Math.cos(p.facing);
+        }
+        p.skillPhase = SkillPhase.ACTIVE;
+        p.skillPhaseMs = CONFIG.DASH_DURATION_MS;
       } else {
-        continue; // next task: dash / shell activation (no-op for now)
+        continue; // next task: shell activation (no-op for now)
       }
       p.skillCooldownMs = cooldownOf(skill);
       events.push({ type: "skillUsed", playerId: p.id, skill });

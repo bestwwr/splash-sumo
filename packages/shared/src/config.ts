@@ -60,7 +60,10 @@ export const CONFIG = {
   SLAM_COOLDOWN_MS: 8000,
   /** Base outward speed of slam knockback, before power/endurance multipliers. */
   SLAM_KNOCK_SPEED: 4.5,
+  DASH_DISTANCE: 4,
+  DASH_DURATION_MS: 250,
   DASH_COOLDOWN_MS: 6000,
+  DASH_KNOCK_MULT: 1.5,
   SHELL_COOLDOWN_MS: 10_000,
 
   // --- Elimination (A.2) ---
