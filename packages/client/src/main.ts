@@ -7,6 +7,7 @@ import { startLocalGame } from "./game/localGame";
 import { defaultRandomNick, loadProfile, saveProfile, type Profile } from "./meta/profile";
 import { createSplashScreen } from "./ui/screens/splash";
 import { createHomeScreen } from "./ui/screens/home";
+import { createInventoryScreen } from "./ui/screens/inventory";
 
 const ID_KEY = "lavasumo.anonId";
 
@@ -72,7 +73,21 @@ const home = createHomeScreen(ui, {
   },
   onQuickPlay: startMatch, // Task 12/13 replace this with the Setup screen / Quick Play loop
   onInventory: () => {
-    // Task 11
+    home.hide();
+    homeActive = false;
+    inventory.show();
+  },
+});
+const inventory = createInventoryScreen(ui, {
+  getProfile: () => profile,
+  setProfile: (p) => {
+    profile = p;
+    saveProfile(profileStore, p);
+  },
+  onBack: () => {
+    inventory.hide();
+    home.show();
+    homeActive = true;
   },
 });
 const splash = createSplashScreen(ui, {
