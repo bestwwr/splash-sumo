@@ -34,7 +34,8 @@ export function createSetupScreen(root: HTMLElement, deps: SetupDeps): SetupScre
       <div class="setup-label">BOTS</div>
       <div class="setup-seg" role="group" aria-label="Bot difficulty"></div>
       <button class="btn primary setup-fight" type="button">FIGHT!</button>
-    </div>`;
+    </div>
+    <p class="setup-hint"><span class="hint-fine">WASD / arrows move · Space = skill</span><span class="hint-coarse">Drag to move · tap the button for your skill</span></p>`;
   root.appendChild(el);
 
   const q = <T extends HTMLElement>(s: string) => el.querySelector<T>(s)!;
@@ -53,6 +54,7 @@ export function createSetupScreen(root: HTMLElement, deps: SetupDeps): SetupScre
       if (!a) {
         b.classList.add("locked");
         b.setAttribute("aria-disabled", "true");
+        b.tabIndex = -1;
         b.innerHTML = `<span class="setup-face">🔒</span><span class="setup-name">Coming soon</span>`;
       } else {
         const sel = a.id === p.arena;

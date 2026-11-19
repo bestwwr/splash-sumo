@@ -16,7 +16,7 @@ export interface FighterModel {
 
 const R = CONFIG.PLAYER_RADIUS;
 
-// Shared geometries/materials (created lazily, reused by every fighter).
+// Shared geometries/materials (created once at module load, reused by every fighter).
 const geo = {
   body: new THREE.IcosahedronGeometry(1, 1),
   sphere: new THREE.SphereGeometry(1, 10, 8),
@@ -75,9 +75,8 @@ export function buildFighter(character: CharacterId, slot: number, _opts: { isLo
     // Big flat ears
     for (const s of [-1, 1]) {
       const ear = mesh(geo.disc, skin, s * R * 0.62, 0.02, -R * 0.05, R * 0.5, R * 0.07, R * 0.5);
-      ear.rotation.z = Math.PI / 2 + s * 0.0;
+      ear.rotation.z = Math.PI / 2;
       ear.rotation.y = s * 0.5;
-      ear.rotation.x = 0;
       const inner = mesh(geo.disc, mats.elephantInner, 0, 0, 0, 0.7, 1.15, 0.7);
       ear.add(inner);
       head.add(ear);

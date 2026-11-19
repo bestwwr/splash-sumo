@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CONFIG } from "../src/config";
 import { cloneState, createMatch, step } from "../src/simulation";
 import { hexToWorld } from "../src/hex";
-import { EliminationCause, TileState, type MatchState, type SimEvent } from "../src/types";
+import { EliminationCause, Phase, TileState, type MatchState, type SimEvent } from "../src/types";
 import { makePlayer } from "./helpers";
 
 const setups = [
@@ -112,6 +112,23 @@ describe("eruption", () => {
     const { s: out, events } = runUntil(s, 5000);
     expect(out.eruption.phase).toBe(0);
     expect(events.some((e) => e.type === "eruptionIncoming")).toBe(false);
+  });
+
+  it("match ending during the telegraph never impacts and the result is frozen", () => {
+    const s0 = arena();
+    const tele = runUntil(s0, 150);
+    expect(tele.s.eruption.phase).toBe(1);
+    // Last opponent eliminated while the eruption is still telegraphed.
+    tele.s.players[1]!.alive = false;
+    const ended = step(tele.s, {});
+    expect(ended.state.phase).toBe(Phase.RESULTS);
+    expect(ended.events.some((e) => e.type === "matchEnd")).toBe(true);
+    expect(ended.state.eruption.phase).toBe(1);
+    const snap = JSON.stringify(ended.state);
+    const after = runUntil(ended.state, ended.state.eruption.impactAtMs + 1000);
+    expect(after.events.some((e) => e.type === "eruptionImpact")).toBe(false);
+    expect(after.events.length).toBe(0);
+    expect(JSON.stringify(after.s)).toBe(snap);
   });
 
   it("cloneState deep-copies the eruption and step never mutates prev", () => {

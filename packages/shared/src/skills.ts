@@ -14,7 +14,8 @@ export function isShelled(p: Player): boolean {
   return p.skillPhase === SkillPhase.ACTIVE && p.skillPhaseMs > 0 && SKILL_OF[p.character] === "shell";
 }
 
-function cooldownOf(skill: SkillId): number {
+/** Full cooldown (ms) of a skill. */
+export function cooldownOf(skill: SkillId): number {
   switch (skill) {
     case "slam":
       return CONFIG.SLAM_COOLDOWN_MS;

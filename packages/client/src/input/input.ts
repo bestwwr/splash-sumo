@@ -33,7 +33,7 @@ export function createControls(root: HTMLElement): Controls {
   layer.innerHTML = `
     <div class="joy-zone"></div>
     <div class="joy-base"><div class="joy-knob"></div></div>
-    <button class="skill-btn" aria-label="Skill"><span class="skill-label">SKILL</span></button>
+    <button class="skill-btn" aria-label="Skill"><span class="skill-label">SKILL</span><span class="skill-key" aria-hidden="true">Space</span></button>
   `;
   root.appendChild(layer);
   const zone = layer.querySelector<HTMLDivElement>(".joy-zone")!;
@@ -109,6 +109,7 @@ export function createControls(root: HTMLElement): Controls {
 
   const onKeyDown = (e: KeyboardEvent) => {
     if (e.target instanceof HTMLInputElement) return;
+    if (!enabled) return; // let Space/arrows act on focused buttons on menu screens
     keys.add(e.code);
     if (e.code === "Space" || e.code.startsWith("Arrow")) e.preventDefault();
   };

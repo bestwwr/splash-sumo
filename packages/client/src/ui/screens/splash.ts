@@ -3,7 +3,7 @@ export interface SplashScreen {
   hide(): void;
 }
 
-/** Full-screen "Tap to play" over the live scene. First pointerdown/keydown calls onContinue once. */
+/** Full-screen "Tap to play" over the live scene. First click/keydown calls onContinue once. */
 export function createSplashScreen(root: HTMLElement, deps: { onContinue(): void }): SplashScreen {
   const el = document.createElement("div");
   el.className = "splash hidden";
@@ -23,7 +23,7 @@ export function createSplashScreen(root: HTMLElement, deps: { onContinue(): void
     } else e.preventDefault();
     armed = false;
     window.removeEventListener("keydown", go, true);
-    el.removeEventListener("pointerdown", go);
+    el.removeEventListener("click", go);
     deps.onContinue();
   }
 
@@ -31,13 +31,13 @@ export function createSplashScreen(root: HTMLElement, deps: { onContinue(): void
     show() {
       el.classList.remove("hidden");
       armed = true;
-      el.addEventListener("pointerdown", go);
+      el.addEventListener("click", go);
       window.addEventListener("keydown", go, true);
     },
     hide() {
       armed = false;
       window.removeEventListener("keydown", go, true);
-      el.removeEventListener("pointerdown", go);
+      el.removeEventListener("click", go);
       el.classList.add("hidden");
     },
   };

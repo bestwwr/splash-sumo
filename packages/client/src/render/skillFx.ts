@@ -76,10 +76,8 @@ export function createSkillFx(scene: THREE.Scene): SkillFx {
     orbMat: THREE.MeshBasicMaterial;
   }
   const per: PerPlayer[] = [];
-  function ensurePlayers(n: number, state: MatchState) {
+  function ensurePlayers(n: number) {
     while (per.length < n) {
-      const p = state.players[per.length]!;
-      void p;
       const orbMat = basic("#ffffff", 0.55, true);
       const entry: PerPlayer = {
         slamRing: add(new THREE.Mesh(ringGeo, basic("#ffb347", 0.95, true))),
@@ -146,12 +144,11 @@ export function createSkillFx(scene: THREE.Scene): SkillFx {
       default:
         break;
     }
-    void state;
   }
 
   function update(state: MatchState, renderTimeMs: number, dt: number) {
     const t = renderTimeMs / 1000;
-    ensurePlayers(state.players.length, state);
+    ensurePlayers(state.players.length);
 
     for (let i = state.players.length; i < per.length; i++) {
       const f = per[i]!;

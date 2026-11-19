@@ -13,6 +13,7 @@ import {
   createMatch,
   hexKey,
   step,
+  cooldownOf,
   worldToHex,
   type MatchState,
   type PlayerInput,
@@ -28,11 +29,6 @@ import { SKILL_INFO } from "../meta/catalog";
 
 /** Dev tool: `?fx` spawns one bot of each fighter so every skill can be seen. */
 const FX_MODE = import.meta.env.DEV && new URLSearchParams(location.search).has("fx");
-const SKILL_COOLDOWN: Record<string, number> = {
-  slam: CONFIG.SLAM_COOLDOWN_MS,
-  dash: CONFIG.DASH_COOLDOWN_MS,
-  shell: CONFIG.SHELL_COOLDOWN_MS,
-};
 
 const LOCAL_ID = "you";
 const FX_CHARACTERS = ["elephant", "monkey", "turtle"] as const;
@@ -189,7 +185,7 @@ export function startQuickPlay(gs: GameScene, controls: Controls, hud: Hud, opts
     const me = state.players.find((p) => p.id === LOCAL_ID)!;
     if (me.alive) {
       const sk = SKILL_OF[me.character];
-      const total = SKILL_COOLDOWN[sk]!;
+      const total = cooldownOf(sk);
       const busy = me.skillPhase !== SkillPhase.NONE;
       controls.setSkillState({ label: SKILL_INFO[sk].name, cooldownFrac: me.skillCooldownMs / total, ready: me.skillCooldownMs <= 0 && !busy });
     } else {
@@ -215,6 +211,7 @@ export function startQuickPlay(gs: GameScene, controls: Controls, hud: Hud, opts
     running = false;
     cancelAnimationFrame(raf);
     gs.scene.remove(players.group);
+    players.dispose();
     gs.skillFx.reset();
   }
   /** Tear down this match: loop, scene objects, FX, HUD, results, input. */

@@ -40,6 +40,19 @@ export function createHomeScreen(root: HTMLElement, deps: HomeDeps): HomeScreen 
   const nickText = q<HTMLSpanElement>(".nick-text");
   const nickInput = q<HTMLInputElement>(".nick-input");
 
+  // The splash's synthesized click can land on the menu right after it appears; swallow it.
+  let shownAt = 0;
+  el.addEventListener(
+    "click",
+    (e) => {
+      if (performance.now() - shownAt < 350) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    },
+    true,
+  );
+
   let model: FighterModel | null = null;
   let shownFighter = "";
 
@@ -86,6 +99,7 @@ export function createHomeScreen(root: HTMLElement, deps: HomeDeps): HomeScreen 
   return {
     show() {
       el.classList.remove("hidden");
+      shownAt = performance.now();
       shownFighter = "";
       refresh();
     },

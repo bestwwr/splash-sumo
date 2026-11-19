@@ -26,21 +26,33 @@ interface PlayerMesh {
   squashDir: THREE.Vector2;
 }
 
-function buildPlayerMesh(character: CharacterId, slot: number, isLocal: boolean, shadowTex: THREE.Texture): PlayerMesh {
+// Shared by every player mesh and every match; never disposed (tiny, reused).
+let shadowTex: THREE.CanvasTexture | null = null;
+let shadowGeo: THREE.PlaneGeometry | null = null;
+let shadowMat: THREE.MeshBasicMaterial | null = null;
+let ringGeo: THREE.RingGeometry | null = null;
+function sharedShadow(): { geo: THREE.PlaneGeometry; mat: THREE.MeshBasicMaterial } {
+  shadowTex ??= blobShadowTexture();
+  shadowGeo ??= new THREE.PlaneGeometry(CONFIG.PLAYER_RADIUS * 2.6, CONFIG.PLAYER_RADIUS * 2.6);
+  shadowMat ??= new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false });
+  return { geo: shadowGeo, mat: shadowMat };
+}
+
+function buildPlayerMesh(character: CharacterId, slot: number, isLocal: boolean): PlayerMesh {
   const fighter = buildFighter(character, slot, { isLocal });
   const { root, body } = fighter;
   const R = CONFIG.PLAYER_RADIUS;
-  const shadow = new THREE.Mesh(
-    new THREE.PlaneGeometry(R * 2.6, R * 2.6),
-    new THREE.MeshBasicMaterial({ map: shadowTex, transparent: true, depthWrite: false }),
-  );
+  const sh = sharedShadow();
+  const shadow = new THREE.Mesh(sh.geo, sh.mat);
   shadow.rotation.x = -Math.PI / 2;
   shadow.position.y = 0.02;
   root.add(shadow);
   let ring: THREE.Mesh | null = null;
   if (isLocal) {
+    ringGeo ??= new THREE.RingGeometry(R * 1.15, R * 1.4, 32);
     ring = new THREE.Mesh(
-      new THREE.RingGeometry(R * 1.15, R * 1.4, 32),
+      ringGeo,
+      // Per-match: opacity is animated on the local ring only.
       new THREE.MeshBasicMaterial({ color: "#ffffff", transparent: true, opacity: 0.85, depthWrite: false }),
     );
     ring.rotation.x = -Math.PI / 2;
@@ -56,14 +68,15 @@ export interface PlayersView {
   update(prev: Player[], cur: Player[], alpha: number, frameSec: number, dtSec: number, groundY: (x: number, z: number) => number): void;
   squash(playerId: string, dirX: number, dirZ: number): void;
   positionOf(playerId: string): THREE.Vector3 | null;
+  /** Free per-match GPU resources (the local ring material). Shared shadow/ring geometry stays. */
+  dispose(): void;
 }
 
 export function createPlayers(players: Player[], localId: string): PlayersView {
   const group = new THREE.Group();
-  const shadowTex = blobShadowTexture();
   const meshes = new Map<string, PlayerMesh>();
   for (const p of players) {
-    const m = buildPlayerMesh(p.character, p.slot, p.id === localId, shadowTex);
+    const m = buildPlayerMesh(p.character, p.slot, p.id === localId);
     meshes.set(p.id, m);
     group.add(m.root);
   }
@@ -140,6 +153,10 @@ export function createPlayers(players: Player[], localId: string): PlayersView {
       if (!m) return;
       m.squashT = 0.18;
       m.squashDir.set(dirX, dirZ);
+    },
+    dispose() {
+      for (const m of meshes.values()) (m.ring?.material as THREE.Material | undefined)?.dispose();
+      meshes.clear();
     },
     positionOf(id) {
       return meshes.get(id)?.root.position ?? null;

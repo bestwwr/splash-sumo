@@ -15,7 +15,7 @@ Up to 4 players stand on basalt tiles over a lava lake. The floor cracks and mel
 |---|---|---|
 | 1 · Core loop (local) | Shared deterministic sim, hex arena, collapse, shove, elimination, joystick + keyboard, 3 dummies | ✅ Built, pending real-phone check |
 | 2 · Online | Colyseus server, private rooms, prediction + interpolation, reconnection | ⏳ |
-| 3 · Characters & bots | Elephant / Monkey / Turtle skills, ember spirits, eruption, bot difficulties | ⏳ |
+| 3 · Characters & bots | Elephant / Monkey / Turtle skills, ember spirits, eruption, bot difficulties, solo Quick Play screens | 🧪 Built, playtest pending |
 | 4 · Polish & launch | Art, audio, PWA, analytics, itch.io | ⏳ |
 
 ## Run it

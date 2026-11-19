@@ -217,7 +217,13 @@ html, body {
 .skill-btn .skill-label { position: relative; font-size: 12px; line-height: 1.1; padding: 0 6px; display: block; }
 .skill-btn.ready { opacity: 1; border-color: #ffd070; box-shadow: 0 0 14px rgba(255, 190, 90, 0.7); }
 .skill-btn.pressed { transform: scale(0.93); opacity: 0.8; }
-@media (pointer: fine) { .skill-btn, .joy-zone { display: none; } }
+.skill-btn .skill-key { display: none; position: relative; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; opacity: 0.85; }
+/* Desktop: no joystick; the skill button stays as a non-interactive indicator with its key label. */
+@media (pointer: fine) {
+  .joy-zone { display: none; }
+  .skill-btn { pointer-events: none; }
+  .skill-btn .skill-key { display: block; }
+}
 
 /* ---------- HUD ---------- */
 .hud { position: absolute; inset: 0; pointer-events: none !important; }
@@ -511,5 +517,11 @@ html, body {
   color: var(--ink);
   border: 3px solid transparent;
   cursor: pointer;
+}
+.setup-hint { flex: none; margin: 0; text-align: center; font-size: calc(13 * var(--u)); font-weight: 700; color: var(--ink-dim); }
+.setup-hint .hint-fine { display: none; }
+@media (pointer: fine) {
+  .setup-hint .hint-fine { display: inline; }
+  .setup-hint .hint-coarse { display: none; }
 }
 .setup-fight { margin-left: auto; min-height: calc(64 * var(--u)); padding: 0 calc(40 * var(--u)); font-size: calc(24 * var(--u)); }

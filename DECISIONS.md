@@ -82,9 +82,6 @@ Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~40 s): 200 seeded 4-bot 
 - Tuning history: first pass gave 95.9 / 75.0 / 80.1%, but Easy bots walked off the rim on their own (half of Easy deaths were FLOOR, ~14 s matches); Easy now moves at 0.7 stick with less wander and more edge weight. Tried and dropped: an "exposure" term (don't stand near an edge with an opponent behind you) and a "stay out of a ready elephant's range" term both made Hard more passive and *lowered* Hard vs Medium (69.9% / ~77%). Higher Hard pressure, Medium seeing warnings later (1000 ms) and Hard-only target leading widened the gap. Run-to-run sensitivity to small weight changes is about ±3 points.
 - Bot `input()` averages ≈ 15–20 µs per call (budget 1 ms).
 
-## Toolchain
-- Node 26, pnpm 12 workspaces, TypeScript 7 (`strict`, `noUncheckedIndexedAccess`), Vite 8, Vitest 5, three r187.
-
 ### D-SQP-2 · Fighter balance deferred to the playtest
 - **Measured (600 matches, 4 Hard bots):** Elephant 13.7%, Monkey 68.0%, Turtle 18.4% of wins. Design target is 30–36% each.
 - **Why not tuned now:** every config that hits the target either changes spec-fixed values (dash ×1.5, shell reflects at full force) or makes slam/shell very swingy.
@@ -92,3 +89,6 @@ Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~40 s): 200 seeded 4-bot 
 
 ### D-SQP-3 · Arenas: volcano first, data-driven
 - **Decision (PO, 2026-11-19):** ship only the volcano (lava) arena now. The map picker shows other arenas as "coming soon" slots. Arenas are defined as data so new ones can be added later without touching the screens.
+
+## Toolchain
+- Node 26, pnpm 12 workspaces, TypeScript 7 (`strict`, `noUncheckedIndexedAccess`), Vite 8, Vitest 5, three r187.
