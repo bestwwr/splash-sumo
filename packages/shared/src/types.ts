@@ -59,6 +59,8 @@ export interface Player {
   fallingMs: number;
   lastHitById: string | null;
   lastHitAtMs: number;
+  /** Cause to credit if the player falls soon after lastHitById's hit. */
+  lastHitCause: EliminationCause;
   lastProcessedSeq: number;
   /** ms until the skill can be used again; 0 = ready. */
   skillCooldownMs: number;
@@ -69,9 +71,24 @@ export interface Player {
   skillHeld: boolean;
   dashDirX: number;
   dashDirZ: number;
+  /** Position on the spirit ring (radians) once eliminated. */
+  spiritAngle: number;
+  /** Spirit's rock cooldown (ms); 0 = ready. */
+  rockCooldownMs: number;
   eliminatedCause: EliminationCause;
   eliminatedAtMs: number;
   eliminatedById: string | null;
+}
+
+export interface LavaRock {
+  id: number;
+  fromId: string;
+  fromX: number;
+  fromZ: number;
+  targetX: number;
+  targetZ: number;
+  thrownAtMs: number;
+  landAtMs: number;
 }
 
 export interface MatchState {
@@ -88,6 +105,8 @@ export interface MatchState {
   nextEdgeShrinkAtMs: number;
   nextRandomTileAtMs: number;
   suddenDeath: boolean;
+  rocks: LavaRock[];
+  nextRockId: number;
   /** Set when the match ends. */
   result: MatchResult | null;
 }
@@ -121,6 +140,8 @@ export type SimEvent =
   | { type: "eliminated"; playerId: string; cause: EliminationCause; byId: string | null }
   | { type: "skillUsed"; playerId: string; skill: SkillId }
   | { type: "slamImpact"; playerId: string; x: number; z: number; hitIds: string[] }
+  | { type: "lavaRockThrown"; fromId: string; targetX: number; targetZ: number; landAtMs: number }
+  | { type: "rockImpact"; fromId: string; x: number; z: number; hitIds: string[] }
   | { type: "suddenDeath" }
   | { type: "edgeShrink"; ring: number }
   | { type: "matchEnd"; result: MatchResult };

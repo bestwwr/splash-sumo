@@ -4,7 +4,7 @@
 import { CONFIG } from "./config";
 import { enduranceMult, maxSpeed, powerMult, SKILL_OF } from "./characters";
 import { isShelled } from "./skills";
-import { SkillPhase, type Player, PlayerInput, SimEvent } from "./types";
+import { EliminationCause, SkillPhase, type Player, PlayerInput, SimEvent } from "./types";
 
 /** Clamp an input vector to length ≤ 1 and sanitize NaN/Infinity (§2.4, §3.7). */
 export function clampInput(dirX: number, dirZ: number): { dirX: number; dirZ: number } {
@@ -79,6 +79,7 @@ export function applyRadialImpulse(
   stunMs: number,
   byId: string | null,
   nowMs: number,
+  cause: EliminationCause = EliminationCause.SHOVE,
 ): void {
   if (isShelled(p)) return;
   const dx = p.x - fromX;
@@ -88,9 +89,10 @@ export function applyRadialImpulse(
   const nz = d > 1e-6 ? dz / d : 0;
   p.vx += nx * speed;
   p.vz += nz * speed;
-  p.hitStunMs = stunMs;
+  p.hitStunMs = Math.max(p.hitStunMs, stunMs);
   p.lastHitById = byId;
   p.lastHitAtMs = nowMs;
+  p.lastHitCause = cause;
 }
 
 /**
@@ -116,6 +118,7 @@ function resolveShellHit(other: Player, shell: Player, nx: number, nz: number, n
   other.hitStunMs = CONFIG.HIT_STUN_MS;
   other.lastHitById = shell.id;
   other.lastHitAtMs = nowMs;
+  other.lastHitCause = EliminationCause.SHOVE;
   return [{ type: "hit", attackerId: other.id, victimId: shell.id, strength: speed }];
 }
 
@@ -189,6 +192,8 @@ export function resolveCollision(a: Player, b: Player, nowMs: number): SimEvent[
   a.lastHitAtMs = nowMs;
   b.lastHitById = a.id;
   b.lastHitAtMs = nowMs;
+  a.lastHitCause = EliminationCause.SHOVE;
+  b.lastHitCause = EliminationCause.SHOVE;
 
   // The one moving harder into the contact is the "attacker" for VFX/analytics.
   const aInto = aN;

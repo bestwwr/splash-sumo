@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { applyMovement, clampInput, resolveCollision } from "../src/physics";
+import { applyMovement, applyRadialImpulse, clampInput, resolveCollision } from "../src/physics";
 import { CONFIG } from "../src/config";
-import { maxSpeed } from "../src/characters";
+import { enduranceMult, maxSpeed, powerMult } from "../src/characters";
 import { makePlayer } from "./helpers";
 
 const R2 = CONFIG.PLAYER_RADIUS * 2;
@@ -111,5 +111,21 @@ describe("shove feel (tuning guard)", () => {
 
   it("a standing bump is a nudge, not a launch", () => {
     expect(pushDistance(0, 0)).toBeLessThan(CONFIG.TILE_WIDTH * 0.4);
+  });
+});
+
+describe("REFERENCE_SHOVE_SPEED", () => {
+  it("equals a full-speed Elephant shove on a stationary Elephant", () => {
+    const expected = (CONFIG.BASE_KNOCK * powerMult("elephant") * maxSpeed("elephant")) / enduranceMult("elephant");
+    expect(CONFIG.REFERENCE_SHOVE_SPEED).toBeCloseTo(expected, 9);
+    expect(CONFIG.ROCK_KNOCK_SPEED).toBeCloseTo(0.3 * expected, 9);
+  });
+});
+
+describe("applyRadialImpulse stun", () => {
+  it("never shortens an existing longer stun", () => {
+    const p = makePlayer("p", 1, 0, { hitStunMs: 500 });
+    applyRadialImpulse(p, 0, 0, 1, 200, "x", 0);
+    expect(p.hitStunMs).toBe(500);
   });
 });

@@ -4,7 +4,7 @@
  *   step(state, inputs) → { state, events }     (pure: input state is not mutated)
  *
  * Tick order: apply inputs → skills → integrate velocity → player-player
- * collisions → (event impulses: M3) → tile states → support/eliminations → win.
+ * collisions → event impulses (lava rocks) → tile states → support/eliminations → win.
  */
 import { CONFIG } from "./config";
 import type { CharacterId } from "./characters";
@@ -12,6 +12,7 @@ import { createTiles, isSupportive, updateCollapse } from "./collapse";
 import { hexKey, worldToHex } from "./hex";
 import { applyMovement, isDashing, resolveCollisions } from "./physics";
 import { updateSkills } from "./skills";
+import { updateRocks, updateSpirits } from "./spirits";
 import {
   EliminationCause,
   Phase,
@@ -64,6 +65,9 @@ export function createMatch(seed: number, setups: PlayerSetup[]): MatchState {
       skillHeld: false,
       dashDirX: 0,
       dashDirZ: 0,
+      lastHitCause: EliminationCause.NONE,
+      spiritAngle: 0,
+      rockCooldownMs: 0,
       eliminatedCause: EliminationCause.NONE,
       eliminatedAtMs: -1,
       eliminatedById: null,
@@ -81,6 +85,8 @@ export function createMatch(seed: number, setups: PlayerSetup[]): MatchState {
     nextEdgeShrinkAtMs: CONFIG.EDGE_SHRINK_START_MS,
     nextRandomTileAtMs: CONFIG.RANDOM_TILE_START_MS,
     suddenDeath: false,
+    rocks: [],
+    nextRockId: 1,
     result: null,
   };
 }
@@ -90,6 +96,7 @@ export function cloneState(s: MatchState): MatchState {
     ...s,
     players: s.players.map((p) => ({ ...p })),
     tiles: s.tiles.map((t) => ({ ...t })),
+    rocks: s.rocks.map((r) => ({ ...r })),
     result: s.result
       ? { ...s.result, placements: s.result.placements.map((p) => ({ ...p })) }
       : null,
@@ -113,7 +120,8 @@ function eliminate(p: Player, nowMs: number, events: SimEvent[]): void {
   p.alive = false;
   p.eliminatedAtMs = nowMs;
   const credited = p.lastHitById !== null && nowMs - p.lastHitAtMs <= CONFIG.SHOVE_CREDIT_MS;
-  p.eliminatedCause = credited ? EliminationCause.SHOVE : EliminationCause.FLOOR;
+  p.eliminatedCause = credited ? p.lastHitCause : EliminationCause.FLOOR;
+  p.spiritAngle = Math.atan2(p.z, p.x);
   p.eliminatedById = credited ? p.lastHitById : null;
   events.push({ type: "eliminated", playerId: p.id, cause: p.eliminatedCause, byId: p.eliminatedById });
 }
@@ -158,6 +166,7 @@ export function step(prev: MatchState, inputs: Inputs): { state: MatchState; eve
 
   // 2) Skills/cooldowns, then integrate velocity
   updateSkills(state, inputs, events);
+  updateSpirits(state, inputs, events);
   for (const p of state.players) {
     if (!p.alive) continue;
     applyMovement(p, inputs[p.id], dtMs);
@@ -165,6 +174,9 @@ export function step(prev: MatchState, inputs: Inputs): { state: MatchState; eve
 
   // 3) Player-player collisions (shove)
   events.push(...resolveCollisions(state.players, now));
+
+  // 3b) Event impulses: lava rocks landing
+  updateRocks(state, events);
 
   // 4) Tile states
   updateCollapse(state, events);

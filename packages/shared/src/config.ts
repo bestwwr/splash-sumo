@@ -2,7 +2,7 @@
  * All gameplay tuning numbers live here (SPEC §0.4, Appendix A).
  * Units: meters, milliseconds, meters/second unless noted.
  */
-export const CONFIG = {
+const BASE = {
   // --- Simulation clock (SPEC §1.3, §3.1) ---
   TICK_HZ: 30,
   TICK_MS: 1000 / 30,
@@ -69,11 +69,40 @@ export const CONFIG = {
   /** Multiplier on the full-force reflection a shelled turtle gives attackers. */
   SHELL_REFLECT_MULT: 1.0,
 
+  // --- Ember spirits & lava rocks ---
+  SPIRIT_RING_RADIUS: 7.2,
+  /** rad/s the joystick's sideways part drifts a spirit around the ring. */
+  SPIRIT_DRIFT_SPEED: 1.2,
+  ROCK_FLIGHT_MS: 600,
+  ROCK_RANGE: 9,
+  ROCK_AIM_CONE_DEG: 30,
+  ROCK_COOLDOWN_MS: 4000,
+  ROCK_HIT_RADIUS: 0.9,
+  ROCK_STAGGER_MS: 200,
+
   // --- Elimination (A.2) ---
   FALL_ELIMINATE_MS: 500,
 
   // --- Input validation (§2.4) ---
   MAX_INPUT_LENGTH: 1,
+} as const;
+
+/**
+ * Shove impulse of a full-speed Elephant on a stationary Elephant. Assumes
+ * Elephant stats power 5 / agility 2 / endurance 3 (characters.ts); derived
+ * here from base numbers because characters.ts imports this file.
+ */
+const REFERENCE_SHOVE_SPEED =
+  (BASE.BASE_KNOCK *
+    (BASE.POWER_MULT_BASE + BASE.POWER_MULT_PER_POINT * 5) *
+    (BASE.BASE_SPEED + BASE.SPEED_PER_AGILITY * 2)) /
+  (BASE.ENDURANCE_MULT_BASE + BASE.ENDURANCE_MULT_PER_POINT * 3);
+
+export const CONFIG = {
+  ...BASE,
+  REFERENCE_SHOVE_SPEED,
+  /** Rock knockback: a flat 30% of a reference shove (not scaled by power/endurance). */
+  ROCK_KNOCK_SPEED: 0.3 * REFERENCE_SHOVE_SPEED,
 } as const;
 
 export type Config = typeof CONFIG;
