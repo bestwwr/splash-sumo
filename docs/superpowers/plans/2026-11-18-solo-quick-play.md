@@ -21,7 +21,7 @@
 - Ember spirit (SPEC A.6): soft auto-aim cone, 0.6 s flight, 30% of a base shove + 0.2 s stagger, 4 s cooldown.
 - Eruption (SPEC A.3): once, t ∈ [30, 50] s; 3–4 circles r = 1.5 m telegraphed 1.5 s; ≈ 40% of a shove; hit tiles → WARNING.
 - Bots (SPEC §3.4): reaction delay Easy 600 / Medium 300 / Hard 120 ms; think 10 Hz, steer 30 Hz; ≤ 1 ms per bot per tick; same `PlayerInput` as humans.
-- One tap from Home to a match; one tap for Play again.
+- Two taps from Home to a match (Quick Play → Fight!, with last picks pre-selected); one tap for Play again. *(Amended 2026-11-19: PO asked for a map/fighter select screen.)*
 - Mobile landscape, 60 fps target; bundle stays far under 5 MB.
 - Persistence is device-only `localStorage`, every access wrapped in try/catch.
 
@@ -55,7 +55,7 @@
 - `render/fighters.ts` *(new)* — per-fighter placeholder models; `render/players.ts` uses it.
 - `render/skillFx.ts` *(new)* — slam ring, dash trail, shell, rocks + landing shadows, eruption circles, spirit look.
 - `input/input.ts` — skill button cooldown ring + label.
-- `ui/screens/home.ts`, `ui/screens/inventory.ts` *(new)*; `ui/hud.ts` — results actions; `style.css`.
+- `ui/screens/splash.ts`, `ui/screens/home.ts`, `ui/screens/inventory.ts`, `ui/screens/setup.ts` *(new)*; `ui/hud.ts` — results actions; `style.css`.
 - `game/quickPlay.ts` *(renamed from `localGame.ts`)*; `game/dummyAI.ts` **deleted**.
 - `main.ts` — screen routing.
 
@@ -68,7 +68,7 @@
 **Files:** none changed.
 
 - [ ] **Step 1:** Confirm with the PO that Milestone 1 may be committed (it is currently uncommitted). Then commit the M1 work to `main`: `git add -A && git commit -m "feat: milestone 1 core loop (local)"`.
-- [ ] **Step 2:** `git checkout -b feat/solo-quick-play`. All later commits go on this branch; **nothing is merged to `main` until Task 14**, because pushes to `main` deploy publicly.
+- [ ] **Step 2:** `git checkout -b feat/solo-quick-play`. All later commits go on this branch; **nothing is merged to `main` until Task 15**, because pushes to `main` deploy publicly.
 - [ ] **Step 3:** Run `pnpm test && pnpm typecheck`. Expected: 40 tests pass, no type errors.
 
 ---
@@ -251,9 +251,10 @@
 **Interfaces:**
 - Produces:
   - `interface CatalogItem { id: string; kind: "fighter" | "skin"; name: string; role?: string; fighterId?: CharacterId; order: number; defaultOwned: boolean }`, plus `CATALOG: readonly CatalogItem[]` (3 fighters: ids `fighter.elephant|monkey|turtle`, roles Tank/Speedster/Anchor, all `defaultOwned: true`; no skins yet). Also `SKILL_INFO: Record<SkillId, { name: string; blurb: string }>` with copy: Ground Slam "Wind up, then blast everyone within 2 m.", Dash "Burst 4 m forward and hop small gaps. Mis-aim and you splash.", Shell "Hide for 1.5 s. Nothing moves you, and whoever hits you bounces off."
+  - Arenas: `interface ArenaInfo { id: string; name: string; emoji: string; blurb: string; available: boolean; order: number }`, plus `ARENAS: readonly ArenaInfo[]` with exactly one entry: `{ id: "arena.volcano", name: "Volcano", emoji: "🌋", blurb: "The floor crumbles into lava. Don't be the one who splashes.", available: true, order: 0 }`. And `arenasForPicker(minCells = 3): Array<ArenaInfo | null>`: available arenas by `order`, padded with `null` ("coming soon") to ≥ `minCells`.
   - `interface KeyValueStorage { getItem(k: string): string | null; setItem(k: string, v: string): void }`.
-  - `interface Profile { version: 1; nickname: string; equippedFighter: CharacterId; difficulty: BotDifficulty; owned: string[]; equippedSkins: Partial<Record<CharacterId, string>> }`.
-  - `loadProfile(storage: KeyValueStorage | null, randomNick: () => string): Profile` and `saveProfile(storage: KeyValueStorage | null, p: Profile): void`, in one JSON key `lavasumo.profile.v1`. Load migrates M1's `lavasumo.nickname`; owned = saved ∪ all `defaultOwned` items, minus unknown IDs; an equipped fighter that isn't owned resets to `elephant`; an unknown difficulty resets to `medium`. Every storage call is wrapped in try/catch.
+  - `interface Profile { version: 1; nickname: string; equippedFighter: CharacterId; difficulty: BotDifficulty; arena: string; owned: string[]; equippedSkins: Partial<Record<CharacterId, string>> }`.
+  - `loadProfile(storage: KeyValueStorage | null, randomNick: () => string): Profile` and `saveProfile(storage: KeyValueStorage | null, p: Profile): void`, in one JSON key `lavasumo.profile.v1`. Load migrates M1's `lavasumo.nickname`; owned = saved ∪ all `defaultOwned` items, minus unknown IDs; an equipped fighter that isn't owned resets to `elephant`; an unknown difficulty resets to `medium`; an unknown or unavailable arena resets to `arena.volcano`. Every storage call is wrapped in try/catch.
   - `fightersForGrid(profile, minCells = 6): Array<CatalogItem | null>`: owned fighters by `order`, padded with `null` ("?" slots) to a multiple of 3 that is ≥ `minCells`.
 
 - [ ] **Step 1: Write failing tests** (Review Focus 1):
@@ -261,13 +262,14 @@
   - `storage that throws on every call → defaults, no throw`.
   - `garbage JSON → defaults`.
   - `migrates the M1 nickname key`.
-  - `unknown fighter / unknown difficulty / unknown owned IDs are repaired`.
+  - `unknown fighter / unknown difficulty / unknown arena / unknown owned IDs are repaired`.
+  - `arenasForPicker pads the single volcano arena with 2 nulls`.
   - `save → load round-trips`.
   - `fightersForGrid pads to 6 with nulls; 7 owned would pad to 9`.
 - [ ] **Step 2:** Run `pnpm --filter @lava-sumo/client test`. Expected: FAIL.
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** `pnpm test && pnpm typecheck`: pass.
-- [ ] **Step 5:** Commit: `feat(client): profile persistence and inventory catalog`.
+- [ ] **Step 5:** Commit: `feat(client): profile persistence, inventory and arena catalog`.
 
 ---
 
@@ -289,17 +291,18 @@
 
 ---
 
-### Task 10: Home screen (showcase, layout B)
+### Task 10: Splash and Home screens (showcase, layout B)
 
-**Files:** Create `packages/client/src/ui/screens/home.ts`; modify `main.ts`, `style.css`, `render/scene.ts` (adds a showcase mount).
+**Files:** Create `packages/client/src/ui/screens/splash.ts`, `packages/client/src/ui/screens/home.ts`; modify `main.ts`, `style.css`, `render/scene.ts` (adds a showcase mount).
 
 **Interfaces:**
 - Consumes: `loadProfile/saveProfile`, `CATALOG`, `buildFighter(…, { showcase: true })`.
+- Produces: `createSplashScreen(root: HTMLElement, deps: { onContinue(): void }): { show(): void; hide(): void }`: full-screen over the live scene, title **LAVA SUMO**, a pulsing **"Tap to play"**, footer "A Best & Ben game"; the first pointerdown or keydown anywhere calls `onContinue` once. `main.ts` shows it once per page load, then Home.
 - Produces: `createHomeScreen(root: HTMLElement, deps: { gs: GameScene; getProfile(): Profile; setProfile(p: Profile): void; onQuickPlay(): void; onInventory(): void }): { show(): void; hide(): void }`. Plus `GameScene.setShowcase(model: FighterModel | null)`, which places the model at the arena center, idle-animating, with the camera framed slightly left so the fighter sits at ~35% of the width (as in the mockup).
-- Layout (approved mockup `home-layout.html` option B): top-left title; the fighter center-left with a "Nickname · Fighter" chip and a "Tap to change ▸" chip (tap → `onInventory`); right column: **⚡ Quick Play** (primary, largest), an **Easy | Medium | Hard** segmented toggle (selected one highlighted; saves to the profile immediately), **🎒 Inventory**, and a disabled **👥 Play with friends · coming soon**. Nickname is editable inline (tap the chip → input; sanitize with the existing `sanitizeNickname`; save on blur/Enter).
+- Layout (approved mockup `home-layout.html` option B): top-left title; the fighter center-left with a "Nickname · Fighter" chip and a "Tap to change ▸" chip (tap → `onInventory`); right column: **⚡ Quick Play** (primary, largest; calls `onQuickPlay`, which opens the Setup screen from Task 12), **🎒 Inventory**, and a disabled **👥 Play with friends · coming soon**. Nickname is editable inline (tap the chip → input; sanitize with the existing `sanitizeNickname`; save on blur/Enter).
 - [ ] **Step 1:** Implement the screen and `setShowcase`; replace the M1 home card in `main.ts`.
-- [ ] **Step 2: Check in Chrome** at desktop size and at 844×390 (DevTools device mode): the fighter and the right column don't overlap; every control is ≥ 44 px tall; a reload keeps the difficulty and nickname.
-- [ ] **Step 3:** `pnpm typecheck`. Commit: `feat(client): home screen with fighter showcase and quick play`.
+- [ ] **Step 2: Check in Chrome** at desktop size and at 844×390 (DevTools device mode): the fighter and the right column don't overlap; every control is ≥ 44 px tall; a reload keeps the nickname; the splash shows on load and one tap reaches Home.
+- [ ] **Step 3:** `pnpm typecheck`. Commit: `feat(client): splash and home screens`.
 
 ---
 
@@ -309,7 +312,7 @@
 
 **Interfaces:**
 - Consumes: `fightersForGrid`, `CATALOG`, `SKILL_INFO`, `CHARACTERS` (stats), `SKILL_OF`, profile load/save.
-- Produces: `createInventoryScreen(root, deps: { getProfile(): Profile; setProfile(p: Profile): void; onBack(): void; onFight?: () => void }): { show(mode: "browse" | "beforeMatch"): void; hide(): void }`. In `"beforeMatch"` mode (from results' Change fighter), the top-left button is a primary **Fight!** that calls `onFight`. In `"browse"` mode it is **◂ Home** (`onBack`).
+- Produces: `createInventoryScreen(root, deps: { getProfile(): Profile; setProfile(p: Profile): void; onBack(): void }): { show(): void; hide(): void }`. The top-left button is **◂ Home** (`onBack`). *(Results' Change fighter goes to the Setup screen, Task 12, instead.)*
 - Layout (approved mockup `inventory-layout.html` option A): tabs **Fighters (n)** and **Skins · soon**. Left: a 3-column grid from `fightersForGrid` (empty cells render "?" and aren't selectable; the equipped cell shows an "EQUIPPED" tag). Right panel for the selected cell: emoji/mini render, name + role, Power/Agility/Endurance bars (value / 5), skill name + blurb, and an **Equip** button ("✓ Equipped" when it already is). Selecting a cell doesn't equip; Equip does, and saves immediately. The Skins tab shows the empty state "Skins are coming soon. Your fighters will be able to wear them here."
 - [ ] **Step 1:** Implement.
 - [ ] **Step 2: Check in Chrome** at 844×390: the grid and panel fit without scrolling; equip → back → Home shows the new fighter; reload keeps it.
@@ -317,26 +320,55 @@
 
 ---
 
-### Task 12: Quick Play loop, bots in the match, results actions
+### Task 12: Quick Play setup screen (map · fighter · difficulty)
+
+**Files:** Create `packages/client/src/ui/screens/setup.ts`; modify `main.ts`, `style.css`.
+
+**Interfaces:**
+- Consumes: `arenasForPicker`, `fightersForGrid`, `CATALOG`, `SKILL_INFO`, `SKILL_OF`, profile load/save.
+- Produces: `createSetupScreen(root: HTMLElement, deps: { getProfile(): Profile; setProfile(p: Profile): void; onBack(): void; onFight(): void }): { show(): void; hide(): void }`.
+- Layout (design §7.1 sketch), over the live scene, fits 844×390 without scrolling:
+  - top bar: **◂ Back** (`onBack`) and the title **QUICK PLAY**;
+  - **MAP** row: one card per `arenasForPicker()` cell. Available: emoji + name, selected one outlined with ✓, tap saves `profile.arena`. `null` cells: 🔒 + "Coming soon", dimmed, not selectable (`aria-disabled="true"`);
+  - **FIGHTER** row: one card per owned fighter (`fightersForGrid` without the null padding): emoji, name, role, skill name. Tap equips (`equippedFighter`) and saves; the equipped one shows ✓;
+  - **BOTS** row: an **Easy | Medium | Hard** segmented toggle, saves `profile.difficulty`;
+  - a primary **FIGHT!** button (bottom-right, the largest control) → `onFight`.
+  - Every card/button ≥ 44 px tall; selection is visible without color alone (✓ + outline).
+- Routing in `main.ts`: Home's Quick Play → Setup; Setup's Fight! → start the match (wired to the Quick Play loop in Task 13; until then it may start the existing local game).
+- [ ] **Step 1: Write failing tests** in `packages/client/test/setup.test.ts` using happy-dom (add `happy-dom` as a client devDependency and set `environment: "happy-dom"` for this file only via `// @vitest-environment happy-dom`):
+  - `renders 1 volcano card + 2 coming-soon cards; coming-soon cards ignore taps`.
+  - `picking a fighter equips and saves it`.
+  - `picking a difficulty saves it`.
+  - `opens with the saved picks pre-selected`.
+  - `Fight! calls onFight; Back calls onBack`.
+- [ ] **Step 2:** Run `pnpm --filter @lava-sumo/client test`. Expected: FAIL.
+- [ ] **Step 3:** Implement and wire the routing.
+- [ ] **Step 4: Check in Chrome** at 844×390: everything fits, picks survive a reload, Home → Quick Play → Fight! is two taps.
+- [ ] **Step 5:** `pnpm test && pnpm typecheck`. Commit: `feat(client): quick play setup screen with map and fighter select`.
+
+---
+
+### Task 13: Quick Play loop, bots in the match, results actions
 
 **Files:** Rename `packages/client/src/game/localGame.ts` → `game/quickPlay.ts`; delete `game/dummyAI.ts`; modify `ui/hud.ts`, `main.ts`.
 
 **Interfaces:**
-- Consumes: `BotController`, `pickBotSetup`, `createSkillFx`, `Controls.setSkillState`, the profile, and the screens from Tasks 10–11.
+- Consumes: `BotController`, `pickBotSetup`, `createSkillFx`, `Controls.setSkillState`, the profile, and the screens from Tasks 10–12.
 - Produces: `startQuickPlay(gs, controls, hud, opts: { profile: Profile; onHome(): void; onChangeFighter(): void }): { stop(): void }`.
   - Players: you (`profile.equippedFighter`, `profile.nickname`) + 3 bots from `pickBotSetup(seed, 3)`, each with a `BotController(id, profile.difficulty, seed ^ slot)`.
   - Each tick: bot inputs come from their controllers, and yours from the controls. Feed every `SimEvent` to `skillFx.onEvent`, and keep the existing hit/elimination feedback (shake, haptics, banners). Add banners for `eruptionIncoming` ("ERUPTION! 🌋 Get out of the circles!") and `suddenDeath`.
   - Skill button state comes from your player each frame (alive → your skill; dead → THROW with `rockCooldownMs`).
   - `hud.showResults(result, players, localId, actions: { onAgain; onChangeFighter; onHome }, subtitle: string)`, where the subtitle reads e.g. `"vs Medium bots · 47.3 s"`. Causes show `Eruption` and `Lava rock by <name>`.
-  - Results **Change fighter** → `onChangeFighter` → `inventory.show("beforeMatch")`, where **Fight!** starts a new Quick Play with the newly equipped fighter and the same difficulty.
+  - Results **Change fighter** → `onChangeFighter` → the Setup screen (picks kept), where **Fight!** starts a new Quick Play with the newly equipped fighter, arena and difficulty.
+  - The match uses `profile.arena`; only `arena.volcano` exists, which is the simulation's current arena.
 - [ ] **Step 1:** Implement, then delete `dummyAI.ts`.
-- [ ] **Step 2: Play-check in Chrome:** a full match on each difficulty; get knocked out and throw rocks as a spirit; see the eruption; check Play again, Change fighter → Equip Monkey → Fight! (you are now the Monkey), and Home. No console errors (`read_console_messages` with `onlyErrors`).
+- [ ] **Step 2: Play-check in Chrome:** a full match on each difficulty; get knocked out and throw rocks as a spirit; see the eruption; check Play again, Change fighter → pick Monkey on Setup → Fight! (you are now the Monkey), and Home. No console errors (`read_console_messages` with `onlyErrors`).
 - [ ] **Step 3:** `pnpm test && pnpm typecheck && pnpm build`. All clean.
 - [ ] **Step 4:** Commit: `feat(client): quick play vs bots with results actions`.
 
 ---
 
-### Task 13: GitHub Pages deploy pipeline (not yet live)
+### Task 14: GitHub Pages deploy pipeline (not yet live)
 
 **Files:** Create `.github/workflows/pages.yml`; modify `packages/client/vite.config.ts`, `README.md`.
 
@@ -349,7 +381,7 @@
 
 ---
 
-### Task 14: Playtest gate, then go live (PO)
+### Task 15: Playtest gate, then go live (PO)
 
 **Files:** `DECISIONS.md`.
 

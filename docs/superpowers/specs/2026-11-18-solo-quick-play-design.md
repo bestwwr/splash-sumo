@@ -59,17 +59,33 @@ Chosen by the PO: **A**.
 
 ### 7.1 Screens & flow
 
+*(Amended 2026-11-19 at the PO's request: a splash page, and a Quick Play setup screen to pick the map and fighter.)*
+
 ```
-HOME ──Quick Play──▶ MATCH (you + 3 bots) ──▶ RESULTS
- │  ▲                                          │ Play again ─▶ MATCH (same fighter, same difficulty)
- │  │                                          │ Change fighter ─▶ INVENTORY ─(Equip / back)─▶ MATCH
- ▼  │◀──────────────────────── Home ───────────┘
-INVENTORY (also opened by tapping the fighter on Home)
+SPLASH ─tap─▶ HOME ──Quick Play──▶ SETUP (map · fighter · difficulty) ──Fight!──▶ MATCH (you + 3 bots) ──▶ RESULTS
+                │  ▲                     ▲                                                               │ Play again ─▶ MATCH (same picks)
+                │  │                     └──────────────────── Change fighter ───────────────────────────┤
+                ▼  │◀──────────────────────────────────── Home ─────────────────────────────────────────┘
+              INVENTORY (also opened by tapping the fighter on Home)
 ```
 
-- **Change fighter** from results: Inventory opens with a primary **"Fight!"** action in place of "◂ Home", which starts a new match with the newly equipped fighter at the same difficulty. *(Builder's note: exact control is the builder's call, but it must stay one tap after equipping.)*
-- Tapping the showcased fighter on Home opens Inventory (same as the 🎒 button).
-- The Home background is the real arena + lava scene (already rendered behind the current home card), with the equipped fighter idle-animating at the center.
+- **Splash:** shown once per page load over the live arena + lava scene: the game title, a pulsing **"Tap to play"**, and a small credit line. Any tap or key goes to Home. (The tap is also the user gesture later used to unlock audio and fullscreen.)
+- **Home** (mockup B): the equipped fighter showcased at the centre, **⚡ Quick Play**, **🎒 Inventory**, disabled **👥 Play with friends · coming soon**. *Builder's call:* the Easy/Medium/Hard toggle moves from Home to the Setup screen, so all match choices live in one place.
+- **Quick Play Setup:** three rows, all **pre-selected with your last picks**, so Home → Quick Play → **Fight!** is two taps.
+  - **Map:** the Volcano card (selected) plus "coming soon" locked cards (padded to 3 cards). Locked cards can't be picked.
+  - **Fighter:** your owned fighters as cards with name, role and skill name; picking one equips it (saved immediately, same as Inventory's Equip).
+  - **Difficulty:** Easy | Medium | Hard.
+  - **◂ Back** returns to Home; **Fight!** starts the match.
+
+  ```
+  ◂ Back                QUICK PLAY
+  MAP       [🌋 Volcano ✓] [🔒 Soon] [🔒 Soon]
+  FIGHTER   [🐘 Elephant ✓] [🐒 Monkey] [🐢 Turtle]
+  BOTS      ( Easy | Medium✓ | Hard )          [ FIGHT! ]
+  ```
+- **Results → Change fighter** opens Setup (with your picks kept); Fight! from there starts a new match.
+- Tapping the showcased fighter on Home opens Inventory (same as the 🎒 button). Inventory is browse-only (◂ Home).
+- Home, Splash and Setup all sit over the real arena + lava scene.
 
 ### 7.2 Persistence (this device only, `localStorage`, wrapped in try/catch)
 
@@ -78,6 +94,7 @@ INVENTORY (also opened by tapping the fighter on Home)
 | nickname | 1–12 chars, sanitized (existing rule) | prompt-free random `PlayerNNN` |
 | equipped fighter | `elephant` \| `monkey` \| `turtle` | `elephant` |
 | bot difficulty | `easy` \| `medium` \| `hard` | `medium` |
+| selected arena | an available arena ID (see 7.3) | `arena.volcano` |
 | inventory | owned item IDs (see 7.3) | all 3 fighters |
 | anonymous ID | UUID (already exists) | generated once |
 
@@ -88,6 +105,7 @@ If storage is unavailable (private mode), the game still works with defaults for
 - A **catalog** (static data in the client) lists items: `{ id, kind: "fighter" | "skin", name, role?, fighterId? (for skins), order }`. Fighter gameplay stats stay in `packages/shared/src/characters.ts`; the catalog references them by ID and never duplicates numbers.
 - An **owned set** (persisted) lists item IDs. At launch it is initialized to all 3 fighters; unknown IDs are ignored, and newly added catalog fighters can be granted by a simple "default owned" flag.
 - **Equipped state:** one equipped fighter; *(future)* one equipped skin per fighter. The schema reserves that field now so skins don't need a migration.
+- **Arenas** (PO 2026-11-19, D-SQP-3): a static arena list `{ id, name, emoji, available, order }`. Only `arena.volcano` (the current lava arena, which the simulation already plays) is available now; the Setup screen pads with "coming soon" cards. New arenas get added as data later; making the simulation take an arena definition is future work, not this feature.
 - **Grid:** the Fighters tab shows owned fighters first, then empty "?" slots padding to a full row (minimum 6 cells in a 3×2 grid at landscape phone size). The Skins tab shows a friendly "coming soon" empty state.
 
 ### 7.4 Skills (shared simulation, SPEC A.5 values)
