@@ -61,10 +61,12 @@ export class RoomLogic {
   private difficulty: BotDifficulty = "medium";
   private readonly members: Member[] = []; // join order
   private readonly conns = new Map<ConnId, ConnState>();
-  private emptySince: number | null = null;
+  /** Starts at construction (a never-joined room dies too); cleared on join, restarted when the last human leaves. */
+  private emptySince: number | null;
 
   private state: MatchState | null = null;
   private bots: BotController[] = [];
+  private startInfo: { seed: number; setups: PlayerSetup[] } | null = null;
   private countdownEndsAt = 0;
   private lastSimMs = 0;
   private acc = 0;
@@ -75,12 +77,15 @@ export class RoomLogic {
   constructor(
     private readonly code: string,
     private readonly deps: RoomDeps,
-  ) {}
+    createdAtMs: number,
+  ) {
+    this.emptySince = createdAtMs;
+  }
 
   // ---- queries ----
 
   joinable(): { ok: true } | { ok: false; code: "FULL" | "IN_PROGRESS" } {
-    if (this.phase !== Phase.LOBBY) return { ok: false, code: "IN_PROGRESS" };
+    if (this.phase === Phase.COUNTDOWN || this.phase === Phase.PLAYING) return { ok: false, code: "IN_PROGRESS" };
     if (this.members.length >= CONFIG.NET_MAX_HUMANS) return { ok: false, code: "FULL" };
     return { ok: true };
   }
@@ -116,6 +121,10 @@ export class RoomLogic {
   message(conn: ConnId, raw: unknown, nowMs: number): Outgoing[] {
     const cs = this.conns.get(conn);
     if (!cs) return [];
+    // Rate limit every message (pre-join and invalid included); over-limit ones are dropped unprocessed.
+    const verdict = this.allowMessage(cs, nowMs);
+    if (verdict === "kick") return [{ close: conn, code: "KICKED" }, ...this.disconnect(conn, nowMs)];
+    if (verdict === "drop") return [];
     const msg = parseClientMsg(raw);
     if (!msg) return [];
     const m = cs.member;
@@ -125,8 +134,6 @@ export class RoomLogic {
 
     switch (msg.t) {
       case "in": {
-        if (!this.allowInput(conn, cs, nowMs)) return [{ close: conn, code: "KICKED" }, ...this.disconnect(conn, nowMs)];
-        if (cs.overSince !== null && cs.windowCount > CONFIG.NET_INPUT_MAX_PER_SEC) return [];
         if (msg.seq <= m.lastSeq) return [];
         m.lastSeq = msg.seq;
         m.input = { seq: msg.seq, dirX: msg.dirX, dirZ: msg.dirZ, skill: msg.skill };
@@ -234,6 +241,7 @@ export class RoomLogic {
     this.acc = 0;
     this.phase = Phase.COUNTDOWN;
     this.countdownEndsAt = nowMs + CONFIG.NET_COUNTDOWN_MS;
+    this.startInfo = { seed, setups };
     const startMsg: ServerMsg = { t: "start", seed, setups, countdownMs: CONFIG.NET_COUNTDOWN_MS };
     return [{ to: "all", msg: startMsg }, this.lobbyMsg()];
   }
@@ -245,6 +253,7 @@ export class RoomLogic {
     for (const m of this.members) m.bot = null;
     this.phase = Phase.LOBBY;
     this.state = null;
+    this.startInfo = null;
     this.bots = [];
     this.snapTiles = null;
     this.pendingEvents = [];
@@ -262,6 +271,7 @@ export class RoomLogic {
     if (token.length === 0 || token.length > MAX_TOKEN_LEN) return [];
     const out: Outgoing[] = [];
     let m = this.members.find((x) => x.token === token);
+    const rejoined = m !== undefined;
 
     if (m) {
       if (m.conn !== null) {
@@ -275,6 +285,7 @@ export class RoomLogic {
         return [{ close: conn, code: "IN_PROGRESS" }];
       }
       m.conn = conn;
+      m.input = { seq: 0, dirX: 0, dirZ: 0, skill: false };
       m.bot = null;
       m.disconnectedAt = 0;
       m.lastSeq = -1;
@@ -304,6 +315,14 @@ export class RoomLogic {
     cs.member = m;
     this.emptySince = null;
     out.push({ to: conn, msg: { t: "welcome", you: m.id, code: this.code } }, this.lobbyMsg());
+    if (rejoined && this.state && this.startInfo && this.phase !== Phase.LOBBY) {
+      // Resync only this conn: the match setup, then a full snapshot.
+      const remaining = this.phase === Phase.COUNTDOWN ? Math.max(0, this.countdownEndsAt - nowMs) : 0;
+      out.push({ to: conn, msg: { t: "start", ...this.startInfo, countdownMs: remaining } });
+      const snap = encodeSnap(this.state, null, []);
+      snap.phase = this.phase;
+      out.push({ to: conn, msg: { t: "snap", ...snap } });
+    }
     return out;
   }
 
@@ -347,8 +366,8 @@ export class RoomLogic {
     return BOT_NAMES[i]!;
   }
 
-  /** Fixed 1 s windows; false means the connection has been over the limit for NET_ABUSE_KICK_MS. */
-  private allowInput(_conn: ConnId, cs: ConnState, nowMs: number): boolean {
+  /** Fixed 1 s windows. "kick" = continuously over the limit for NET_ABUSE_KICK_MS. */
+  private allowMessage(cs: ConnState, nowMs: number): "ok" | "drop" | "kick" {
     if (nowMs - cs.windowStart >= 1000) {
       if (cs.overSince !== null && cs.windowCount <= CONFIG.NET_INPUT_MAX_PER_SEC) cs.overSince = null;
       cs.windowStart = nowMs;
@@ -357,8 +376,9 @@ export class RoomLogic {
     cs.windowCount++;
     if (cs.windowCount > CONFIG.NET_INPUT_MAX_PER_SEC) {
       if (cs.overSince === null) cs.overSince = nowMs;
-      if (nowMs - cs.overSince >= CONFIG.NET_ABUSE_KICK_MS) return false;
+      if (nowMs - cs.overSince >= CONFIG.NET_ABUSE_KICK_MS) return "kick";
+      return "drop";
     }
-    return true;
+    return "ok";
   }
 }

@@ -4,7 +4,7 @@ import { RoomLogic, type Outgoing } from "../src/room";
 
 function makeRoom() {
   let n = 0;
-  const room = new RoomLogic("ABCD", { random: () => 0.25, randomSeed: () => 1234 + n++ });
+  const room = new RoomLogic("ABCD", { random: () => 0.25, randomSeed: () => 1234 + n++ }, 0);
   let now = 0;
   const log: Outgoing[] = [];
   const send = (conn: string, msg: ClientMsg | unknown): Outgoing[] => {
@@ -207,6 +207,83 @@ describe("match", () => {
     expect(l.phase).toBe(Phase.LOBBY);
     expect(l.members.map((m) => m.id)).toEqual(["p1"]);
     expect(h.room.needsTicking()).toBe(false);
+  });
+});
+
+describe("fix round 1", () => {
+  it("rate-limits every message type; flood of picks does not broadcast; pre-join/invalid flood kicks", () => {
+    const h = makeRoom();
+    h.join("c1", "tok1");
+    let lobbies = 0;
+    for (let i = 0; i < 30; i++) lobbies += h.send("c1", { t: "pick", character: "turtle" }).length;
+    expect(lobbies).toBe(14); // join used 1 of the 15 allowed this second
+    h.room.connect("x", h.now());
+    let kicked = false;
+    for (let sec = 0; sec < 7 && !kicked; sec++) {
+      for (let i = 0; i < 30; i++) kicked ||= closes(h.room.message("x", "junk", h.now())).length > 0;
+      h.advance(1000);
+    }
+    expect(kicked).toBe(true);
+  });
+
+  it("rejoin mid-match resyncs only that conn with start then a full snap", () => {
+    const h = startedRoom(2);
+    h.run(3100);
+    h.room.disconnect("c1", h.now());
+    h.run(500);
+    const out = h.join("c9", "tok1");
+    const mine = out.filter((o) => "msg" in o && o.to === "c9").map((o) => ("msg" in o ? o.msg : null)!);
+    const i = mine.findIndex((m) => m.t === "start");
+    expect(i).toBeGreaterThan(-1);
+    const st = mine[i] as Extract<ServerMsg, { t: "start" }>;
+    expect(st.countdownMs).toBe(0);
+    expect(st.setups).toHaveLength(4);
+    const sn = mine[i + 1] as Extract<ServerMsg, { t: "snap" }>;
+    expect(sn.t).toBe("snap");
+    expect(sn.tiles).toHaveLength(91);
+    expect(out.filter((o) => "msg" in o && o.to !== "c9" && (o.msg.t === "snap" || o.msg.t === "start"))).toEqual([]);
+  });
+
+  it("rejoin during countdown reports remaining countdown", () => {
+    const h = startedRoom(2);
+    h.run(1000);
+    h.room.disconnect("c2", h.now());
+    const out = h.join("c9", "tok2");
+    const st = msgsTo(out, "c9", "start")[0] as Extract<ServerMsg, { t: "start" }>;
+    expect(st.countdownMs).toBeGreaterThan(1900);
+    expect(st.countdownMs).toBeLessThan(2100);
+  });
+
+  it("stale input does not survive disconnect/rejoin or REPLACED takeover", () => {
+    const h = startedRoom(2);
+    h.run(3100);
+    h.send("c1", { t: "in", seq: 5, dirX: 1, dirZ: 0, skill: false });
+    h.room.disconnect("c1", h.now());
+    h.run(200);
+    h.join("c9", "tok1");
+    const after = snaps(h.run(300)).pop()!.players[0]!;
+    expect(after.lastProcessedSeq).toBe(0);
+    h.send("c9", { t: "in", seq: 2, dirX: 1, dirZ: 0, skill: false });
+    h.join("c10", "tok1"); // REPLACED
+    expect(snaps(h.run(300)).pop()!.players[0]!.lastProcessedSeq).toBe(0);
+  });
+
+  it("allows joining during RESULTS; member shows up after again", () => {
+    const h = startedRoom(1);
+    for (let i = 0; i < 400 && !h.room.joinable().ok; i++) h.run(1000);
+    expect(h.room.joinable()).toEqual({ ok: true });
+    const out = h.join("c2", "tok2");
+    expect(closes(out)).toEqual([]);
+    const l = lastLobby(h.send("c1", { t: "again" }))!;
+    expect(l.phase).toBe(Phase.LOBBY);
+    expect(l.members.map((m) => m.id)).toEqual(["p1", "p2"]);
+  });
+
+  it("a room nobody ever joined dies after 30s", () => {
+    const h = makeRoom();
+    expect(h.room.needsTicking()).toBe(true);
+    expect(h.room.isDead(29_999)).toBe(false);
+    expect(h.room.isDead(30_000)).toBe(true);
   });
 });
 
