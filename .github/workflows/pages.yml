@@ -30,6 +30,9 @@ jobs:
       - run: pnpm test
       - run: pnpm typecheck
       - run: pnpm build
+        env:
+          VITE_APP_ENV: prod
+          VITE_SERVER_URL: ${{ vars.SERVER_URL }}
       - if: github.event_name != 'pull_request'
         uses: actions/configure-pages@v5
       - if: github.event_name != 'pull_request'

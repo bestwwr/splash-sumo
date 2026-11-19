@@ -14,19 +14,27 @@ Up to 4 players stand on basalt tiles over a lava lake. The floor cracks and mel
 | Milestone | Scope | Status |
 |---|---|---|
 | 1 · Core loop (local) | Shared deterministic sim, hex arena, collapse, shove, elimination, joystick + keyboard, 3 dummies | ✅ Built, pending real-phone check |
-| 2 · Online | Colyseus server, private rooms, prediction + interpolation, reconnection | ⏳ |
+| 2 · Online | Cloudflare Workers + Durable Objects, private rooms, server snapshots + interpolation, reconnection | 🧪 Built, playtest pending |
 | 3 · Characters & bots | Elephant / Monkey / Turtle skills, ember spirits, eruption, bot difficulties, solo Quick Play screens | 🧪 Built, playtest pending |
 | 4 · Polish & launch | Art, audio, PWA, analytics, itch.io | ⏳ |
+
+## Play with friends
+
+Home → **Play with friends** → **Create room**, then share the link or the room code. Up to 4 players; bots fill any empty slots.
 
 ## Run it
 
 ```bash
 pnpm install
-pnpm dev          # http://localhost:5173, plus a Network URL for phones on the same Wi-Fi
+pnpm dev          # client on http://localhost:5173 (plus a Network URL for phones) and local server on :8787
 pnpm test         # shared simulation unit tests
 pnpm typecheck
 pnpm build
+pnpm deploy:staging   # staging Worker lava-sumo-staging (client + server, TEST badge); deploy freely
+pnpm deploy:prod      # prod Worker lava-sumo; only with PO OK
 ```
+
+To test online play locally, use two browser windows on different origins (e.g. `localhost:5173` and `127.0.0.1:5173`): tabs on one origin share a player token.
 
 **Controls:** phone: drag anywhere on the left half to move. Desktop: WASD / arrow keys.
 

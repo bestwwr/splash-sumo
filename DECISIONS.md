@@ -90,5 +90,23 @@ Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~40 s): 200 seeded 4-bot 
 ### D-SQP-3 · Arenas: volcano first, data-driven
 - **Decision (PO, 2026-11-19):** ship only the volcano (lava) arena now. The map picker shows other arenas as "coming soon" slots. Arenas are defined as data so new ones can be added later without touching the screens.
 
+## Online multiplayer
+
+### D-MP-1 · Cloudflare Workers + Durable Objects (supersedes SPEC D5)
+- **Decision:** the game server runs on Cloudflare Workers with Durable Objects (free plan, SQLite-backed, one DO per room code), replacing Colyseus on Fly.io (SPEC D5).
+- **Why:** free hosting, no card, no cold starts, close to both the US and Thailand.
+- **Standard WebSockets (not hibernating):** lobbies stay in memory. Cost: DO duration is billed while sockets are open.
+
+### D-MP-2 · Server-authoritative snapshots, no prediction
+- **Decision:** server sends snapshots at 20 Hz; clients interpolate with ~100 ms delay. No client-side prediction this milestone.
+- **Rejected:** lockstep, because of cross-browser float determinism risk.
+
+### D-MP-3 · No skin field in the protocol yet
+- Skins are "soon"; the protocol carries no skin field until they exist.
+
+### D-MP-4 · Two environments
+- **Staging:** Worker `lava-sumo-staging` serves the staging client and server same-origin, with a TEST badge. Deploy freely via `pnpm deploy:staging`.
+- **Prod:** Worker `lava-sumo` plus the GitHub Pages client. Deploy only with PO OK.
+
 ## Toolchain
 - Node 26, pnpm 12 workspaces, TypeScript 7 (`strict`, `noUncheckedIndexedAccess`), Vite 8, Vitest 5, three r187.
