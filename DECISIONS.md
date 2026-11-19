@@ -42,5 +42,42 @@ Decisions made while building, per SPEC §0. Spec-level decision records (D1–D
 ### D-M1-9 · Name
 - The spec says **Lava Sumo**; the repo/folder is **Splash Sumo**. The in-game title uses the spec name for now. *Open:* confirm with the PO.
 
+## Solo Quick Play
+
+### D-SQP-1 · Utility-AI bots (Easy / Medium / Hard)
+- Code: `packages/shared/src/bots/` (`bot.ts` controller, `scoring.ts` direction scoring, `names.ts`). Pure and deterministic: each `BotController` has its own seeded `RngState`.
+- Every `BOT_THINK_MS` (100 ms) a bot scores 16 directions + "stand still" and picks the best after adding uniform noise `[0, BOT_NOISE)`. The decision is queued and takes effect `BOT_REACTION_MS` later (600 / 300 / 120 ms); each tick the bot outputs the active decision. Skill presses (and spirit rock throws) are one-tick rising edges.
+- Score = floor safety on the predicted path (7 samples over 0.8 s using the real steering model incl. current knockback; once a sample loses support the rest of the path counts as fallen) + distance from the edge (capped) − distance from the safe-floor centroid + pressure (aim for the spot behind an opponent who is near an edge, so the shove pushes them into it) + chase − threats (slam wind-up ring — a path through the rooted elephant counts as blocked — dash line, eruption circles in phase 1, incoming rocks).
+- "Edge" is derived from the tiles, not the arena radius: distance to the nearest missing neighbor cell, SINKING/GONE tile, or warned tile that sinks within the bot's `warnSenseMs`. A larger `warnSenseMs` makes a bot both avoid warnings earlier and treat opponents near warning tiles as "near the edge" (Hard's baiting onto warning tiles).
+- Skills: Easy uses sloppy triggers at 8% per think; Medium uses "opponent in range" (current positions) at 50%; Hard times them and leads targets (slam only when a target is near an edge or two are in range and its own tile stays solid through the wind-up; dash only to push a near-edge target toward its hole, or to jump a sinking tile; shell against chargers, wind-ups, dashes, eruption circles and rocks, and only on floor that lasts the shell).
+- Dead bots play their ember spirit: aim at the living player in range who is nearest the edge, throw when the rock is ready.
+- Test-only note: the "hard bot dodges a wind-up 1 m away" test holds the dummy elephant's wind-up at 1 s. With the real 400 ms wind-up no fighter can cover 1 m after a 120 ms reaction (physics limit ≈ 0.65–0.9 m), so a real slam started 1 m from a bot is effectively undodgeable. *Open:* if that should change, it is a skill-tuning question (wind-up length), not a bot one.
+
+Chosen tuning (`config.ts`):
+
+| | Easy | Medium | Hard |
+|---|---|---|---|
+| Reaction | 600 ms | 300 ms | 120 ms |
+| Noise | 1.0 | 0.8 | 0.15 |
+| Skill use | 0.08 | 0.5 | 1 |
+| floor / warnSenseMs | 2 / 500 | 4 / 1000 | 5 / 1800 |
+| edge / edgeCap | 1 / 1.5 m | 1.4 / 2.5 m | 1.8 / 3 m |
+| center | 0.05 | 0.25 | 0.2 |
+| pressure / chase | 0.3 / 0.25 | 1.2 / 0.35 | 3 / 0.4 |
+| threat | 0 | 1.5 | 4 |
+| wander / inertia | 0.6 / 0.2 | 0 / 0.25 | 0 / 0.25 |
+| skill timing / stick speed | sloppy / 0.7 | in range / 1 | timed + lead / 1 |
+
+Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~35 s): 200 seeded 4-bot matches per pairing, random fighters, sides alternate by slot. Share = strong wins / decided matches (draws excluded; counting draws as losses lowers each by ≤ 1 point).
+
+| Pairing | Strong wins | Weak wins | Draws | Strong share |
+|---|---|---|---|---|
+| 2 hard vs 2 easy | 193 | 5 | 2 | 97.5% |
+| 2 hard vs 2 medium | 157 | 41 | 2 | 79.3% |
+| 2 medium vs 2 easy | 154 | 41 | 5 | 79.0% |
+
+- Tuning history: first pass gave 95.9 / 75.0 / 80.1%, but Easy bots walked off the rim on their own (half of Easy deaths were FLOOR, ~14 s matches); Easy now moves at 0.7 stick with less wander and more edge weight. Tried and dropped: an "exposure" term (don't stand near an edge with an opponent behind you) and a "stay out of a ready elephant's range" term both made Hard more passive and *lowered* Hard vs Medium (69.9% / ~77%). Higher Hard pressure, Medium seeing warnings later (1000 ms) and Hard-only target leading widened the gap. Run-to-run sensitivity to small weight changes is about ±3 points.
+- Bot `input()` averages ≈ 15–20 µs per call (budget 1 ms).
+
 ## Toolchain
 - Node 26, pnpm 12 workspaces, TypeScript 7 (`strict`, `noUncheckedIndexedAccess`), Vite 8, Vitest 5, three r187.

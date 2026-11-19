@@ -94,6 +94,33 @@ const BASE = {
 
   // --- Input validation (§2.4) ---
   MAX_INPUT_LENGTH: 1,
+
+  // --- Bots (SPEC §3.4). Tuned with `pnpm --filter @lava-sumo/shared sim`; see DECISIONS.md "Solo Quick Play". ---
+  BOT_THINK_MS: 100,
+  /** A decision made at time t takes effect at t + reaction. */
+  BOT_REACTION_MS: { easy: 600, medium: 300, hard: 120 },
+  /** Uniform random [0, noise) added to every candidate direction's score. */
+  BOT_NOISE: { easy: 1.0, medium: 0.8, hard: 0.15 },
+  /** Chance to take a skill opportunity when one is seen at a think. */
+  BOT_SKILL_USE: { easy: 0.08, medium: 0.5, hard: 1 },
+  /** Candidate move directions per think (plus "stand still"). */
+  BOT_DIRECTIONS: 16,
+  /** Path samples (s ahead) used to score a direction; ≤ 0.9 m apart at top speed so holes are not skipped. */
+  BOT_LOOKAHEAD_S: [0.1, 0.2, 0.3, 0.4, 0.5, 0.65, 0.8],
+  BOT_WEIGHTS: {
+    easy: {
+      floor: 2, warnSenseMs: 500, edge: 1, edgeCap: 1.5, center: 0.05, pressure: 0.3, chase: 0.25,
+      threat: 0, wander: 0.6, inertia: 0.2, skillSmart: 0, speed: 0.7,
+    },
+    medium: {
+      floor: 4, warnSenseMs: 1000, edge: 1.4, edgeCap: 2.5, center: 0.25, pressure: 1.2, chase: 0.35,
+      threat: 1.5, wander: 0, inertia: 0.25, skillSmart: 1, speed: 1,
+    },
+    hard: {
+      floor: 5, warnSenseMs: 1800, edge: 1.8, edgeCap: 3, center: 0.2, pressure: 3, chase: 0.4,
+      threat: 4, wander: 0, inertia: 0.25, skillSmart: 2, speed: 1,
+    },
+  },
 } as const;
 
 /**

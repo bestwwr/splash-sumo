@@ -156,3 +156,5 @@ export type SimEvent =
   | { type: "suddenDeath" }
   | { type: "edgeShrink"; ring: number }
   | { type: "matchEnd"; result: MatchResult };
+
+export type BotDifficulty = "easy" | "medium" | "hard";

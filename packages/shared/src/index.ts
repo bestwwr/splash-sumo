@@ -9,3 +9,6 @@ export * from "./spirits";
 export * from "./eruption";
 export * from "./collapse";
 export * from "./simulation";
+export { scoreDirection, type BotWeights } from "./bots/scoring";
+export * from "./bots/bot";
+export * from "./bots/names";
