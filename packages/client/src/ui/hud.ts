@@ -6,6 +6,12 @@ const ORDINAL = ["", "1st", "2nd", "3rd", "4th"];
 
 const esc = (s: string) => s.replace(/[&<>"']/g, (c) => `&#${c.charCodeAt(0)};`);
 
+export interface ResultAction {
+  id: string;
+  label: string;
+  onClick: () => void;
+}
+
 export interface Hud {
   setPlayers(players: Player[], localId: string): void;
   update(players: Player[], timeMs: number, suddenDeath: boolean): void;
@@ -15,7 +21,7 @@ export interface Hud {
     result: MatchResult,
     players: Player[],
     localId: string,
-    actions: { onAgain: () => void; onChangeFighter: () => void; onHome: () => void },
+    actions: ResultAction[],
     subtitle: string,
   ): void;
   hideResults(): void;
@@ -112,17 +118,18 @@ export function createHud(root: HTMLElement): Hud {
           <h2>${title}</h2>
           <p class="sub">${esc(subtitle)}</p>
           <ol>${rows}</ol>
-          <div class="actions">
-            <button class="btn primary act-again">Play again</button>
-            <button class="btn ghost act-change">Change fighter</button>
-            <button class="btn ghost act-home">Home</button>
-          </div>
+          <div class="actions"></div>
         </div>`;
       results.classList.remove("hidden");
-      results.querySelector<HTMLButtonElement>(".act-again")!.onclick = actions.onAgain;
-      results.querySelector<HTMLButtonElement>(".act-home")!.onclick = actions.onHome;
-      results.querySelector<HTMLButtonElement>(".act-change")!.onclick = actions.onChangeFighter;
-      results.querySelector<HTMLButtonElement>(".act-again")!.focus();
+      const bar = results.querySelector<HTMLDivElement>(".actions")!;
+      actions.forEach((a, i) => {
+        const btn = document.createElement("button");
+        btn.className = `btn ${i === 0 ? "primary" : "ghost"} act-${a.id}`;
+        btn.textContent = a.label;
+        btn.onclick = a.onClick;
+        bar.appendChild(btn);
+      });
+      bar.querySelector<HTMLButtonElement>("button")?.focus();
     },
     hideResults() {
       results.classList.add("hidden");
