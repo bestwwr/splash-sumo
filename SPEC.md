@@ -359,7 +359,7 @@ US ↔ Thailand RTT ≈ 220–260 ms → uncomfortable for one shared region.
 | D2 | Rendering | **Three.js** | Babylon.js, PlayCanvas, Godot/Unity web export | Lightweight, huge ecosystem, AI agents know it well | More DIY (no editor) |
 | D3 | Gameplay physics | **Custom 2D circles on XZ** | Rapier / cannon-es 3D | Deterministic, tiny, easy to sync and predict | No realistic tumbling; falls are animated |
 | D4 | Network model | **Server-authoritative + interpolation + local prediction** | P2P, deterministic lockstep, client-authoritative | Fair, cheat-resistant, tolerant of mobile jitter | Hits feel ~1 RTT late; needs a server |
-| D5 | Server framework | **Colyseus** | Photon, Nakama, raw `ws`/Socket.io | Rooms, matchmaking, delta state sync, reconnection built in; TypeScript shared code | Self-hosting; scaling needs Redis later | *Superseded by DECISIONS.md D-MP-1 (Cloudflare Workers + Durable Objects).*
+| D5 | Server framework | **Colyseus** | Photon, Nakama, raw `ws`/Socket.io | Rooms, matchmaking, delta state sync, reconnection built in; TypeScript shared code | Self-hosting; scaling needs Redis later. *Superseded by DECISIONS.md D-MP-1 (Cloudflare Workers + Durable Objects).* |
 | D6 | Shove input | **Collision-based** | Dedicated push button | One-thumb control; stats matter naturally | Less precise "intent" to shove |
 | D7 | Bots | **Server-side utility AI** | Client-side bots, ML | Fills rooms; same code path as players | Hand-tuning needed |
 | D8 | Identity | **Nickname + anonymous ID** | Accounts (OAuth) | Zero friction for portfolio launch | No cross-device stats/retention accuracy |
