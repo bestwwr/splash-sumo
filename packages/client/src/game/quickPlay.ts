@@ -1,11 +1,11 @@
 /**
- * Milestone 1: a full match running locally in the browser.
+ * Quick Play: a full local match against 3 bots (BotController, same PlayerInput as a human).
  * Fixed 30 Hz sim (shared `step`) + render interpolation at display rate.
- * In Milestone 2 the server owns `step`; this loop becomes prediction/interpolation.
  */
 import * as THREE from "three";
 import {
   BotController,
+  pickBotSetup,
   CONFIG,
   Phase,
   SKILL_OF,
@@ -14,15 +14,16 @@ import {
   hexKey,
   step,
   worldToHex,
-  type CharacterId,
   type MatchState,
+  type PlayerInput,
   type SimEvent,
 } from "@lava-sumo/shared";
 import type { GameScene } from "../render/scene";
 import { createPlayers, type PlayersView } from "../render/players";
 import type { Controls } from "../input/input";
 import type { Hud } from "../ui/hud";
-import { createDummyAI } from "./dummyAI";
+import { resultsSubtitle } from "../ui/resultsText";
+import type { Profile } from "../meta/profile";
 import { SKILL_INFO } from "../meta/catalog";
 
 /** Dev tool: `?fx` spawns one bot of each fighter so every skill can be seen. */
@@ -33,28 +34,31 @@ const SKILL_COOLDOWN: Record<string, number> = {
   shell: CONFIG.SHELL_COOLDOWN_MS,
 };
 
-const DUMMY_NAMES = ["Magma", "Pebble", "Cinder", "Basalt", "Ash", "Obsidian", "Sizzle", "Boulder"];
 const LOCAL_ID = "you";
+const FX_CHARACTERS = ["elephant", "monkey", "turtle"] as const;
 
-export interface LocalGameOptions {
-  nickname: string;
-  character: CharacterId;
-  seed?: number;
-  onExit: () => void;
+export interface QuickPlayOptions {
+  profile: Profile;
+  onHome: () => void;
+  onChangeFighter: () => void;
 }
 
-export function startLocalGame(gs: GameScene, controls: Controls, hud: Hud, opts: LocalGameOptions) {
-  const seed = opts.seed ?? (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
-  const names = [...DUMMY_NAMES].sort(() => Math.random() - 0.5);
+export function startQuickPlay(gs: GameScene, controls: Controls, hud: Hud, opts: QuickPlayOptions) {
+  const { profile } = opts;
+  const seed = (Date.now() ^ (Math.random() * 0xffffffff)) >>> 0;
+  const botSetups = pickBotSetup(seed, 3);
+  const botIds = botSetups.map((_, i) => `bot${i + 1}`);
   let state: MatchState = createMatch(seed, [
-    { id: LOCAL_ID, nickname: opts.nickname, character: opts.character, isBot: false },
-    { id: "d1", nickname: names[0]!, character: FX_MODE ? "elephant" : opts.character, isBot: true },
-    { id: "d2", nickname: names[1]!, character: FX_MODE ? "monkey" : opts.character, isBot: true },
-    { id: "d3", nickname: names[2]!, character: FX_MODE ? "turtle" : opts.character, isBot: true },
+    { id: LOCAL_ID, nickname: profile.nickname, character: profile.equippedFighter, isBot: false },
+    ...botSetups.map((b, i) => ({
+      id: botIds[i]!,
+      nickname: b.nickname,
+      character: FX_MODE ? FX_CHARACTERS[i]! : b.character,
+      isBot: true,
+    })),
   ]);
-  const fxBots = FX_MODE ? ["d1", "d2", "d3"].map((id, i) => new BotController(id, "medium", seed + i)) : [];
+  const bots = botIds.map((id, i) => new BotController(id, profile.difficulty, (seed ^ (i + 1)) >>> 0));
   let prev = state;
-  const ai = createDummyAI(seed ^ 0x9e3779b9);
   const players: PlayersView = createPlayers(state.players, LOCAL_ID);
   gs.scene.add(players.group);
   gs.skillFx.reset();
@@ -112,6 +116,10 @@ export function startLocalGame(gs: GameScene, controls: Controls, hud: Hud, opts
         case "edgeShrink":
           gs.shake(0.06);
           break;
+        case "eruptionIncoming":
+          hud.banner("ERUPTION! 🌋 Get out of the circles!", 2200);
+          gs.shake(0.1);
+          break;
         case "suddenDeath":
           hud.banner("SUDDEN DEATH! 🌋", 2200);
           gs.shake(0.3);
@@ -120,7 +128,13 @@ export function startLocalGame(gs: GameScene, controls: Controls, hud: Hud, opts
           controls.setEnabled(false);
           window.setTimeout(() => {
             if (!running) return;
-            hud.showResults(e.result, state.players, LOCAL_ID, restart, exit);
+            hud.showResults(
+              e.result,
+              state.players,
+              LOCAL_ID,
+              { onAgain: again, onChangeFighter: changeFighter, onHome: home },
+              resultsSubtitle(profile.difficulty, e.result.durationMs),
+            );
           }, 1100);
           break;
         case "fall":
@@ -151,13 +165,10 @@ export function startLocalGame(gs: GameScene, controls: Controls, hud: Hud, opts
       while (acc >= CONFIG.TICK_MS && steps < CONFIG.MAX_CATCHUP_STEPS) {
         const local = controls.read();
         seq++;
-        const botInputs = FX_MODE
-          ? Object.fromEntries(fxBots.map((b) => [b.playerId, b.input(state, seq)]))
-          : ai.inputs(state, ["d1", "d2", "d3"], seq);
-        const inputs = {
-          ...botInputs,
+        const inputs: Record<string, PlayerInput> = {
           [LOCAL_ID]: { seq, dirX: local.dirX, dirZ: local.dirZ, skill: local.skill },
         };
+        for (const b of bots) inputs[b.playerId] = b.input(state, seq);
         prev = state;
         const r = step(state, inputs);
         state = r.state;
@@ -206,16 +217,26 @@ export function startLocalGame(gs: GameScene, controls: Controls, hud: Hud, opts
     gs.scene.remove(players.group);
     gs.skillFx.reset();
   }
-  function restart() {
+  /** Tear down this match: loop, scene objects, FX, HUD, results, input. */
+  function teardown() {
     stop();
-    startLocalGame(gs, controls, hud, { ...opts, seed: undefined });
-  }
-  function exit() {
-    stop();
+    hud.hideResults();
+    hud.countdown(null);
     hud.setVisible(false);
     controls.setEnabled(false);
-    opts.onExit();
+  }
+  function again() {
+    teardown();
+    startQuickPlay(gs, controls, hud, opts);
+  }
+  function changeFighter() {
+    teardown();
+    opts.onChangeFighter();
+  }
+  function home() {
+    teardown();
+    opts.onHome();
   }
 
-  return { stop };
+  return { stop: teardown };
 }

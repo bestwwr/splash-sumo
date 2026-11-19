@@ -1,13 +1,6 @@
-import { CONFIG, EliminationCause, type MatchResult, type Player } from "@lava-sumo/shared";
+import { CONFIG, type MatchResult, type Player } from "@lava-sumo/shared";
+import { causeText } from "./resultsText";
 import { SLOT_COLORS } from "../render/players";
-
-const CAUSE_LABEL: Record<EliminationCause, string> = {
-  [EliminationCause.NONE]: "Survived",
-  [EliminationCause.SHOVE]: "Shoved",
-  [EliminationCause.FLOOR]: "Floor melted",
-  [EliminationCause.ERUPTION]: "Eruption",
-  [EliminationCause.LAVA_ROCK]: "Lava rock",
-};
 
 const ORDINAL = ["", "1st", "2nd", "3rd", "4th"];
 
@@ -18,7 +11,13 @@ export interface Hud {
   update(players: Player[], timeMs: number, suddenDeath: boolean): void;
   countdown(n: number | "GO!" | null): void;
   banner(text: string, ms?: number): void;
-  showResults(result: MatchResult, players: Player[], localId: string, onAgain: () => void, onHome: () => void): void;
+  showResults(
+    result: MatchResult,
+    players: Player[],
+    localId: string,
+    actions: { onAgain: () => void; onChangeFighter: () => void; onHome: () => void },
+    subtitle: string,
+  ): void;
   hideResults(): void;
   setFps(fps: number): void;
   setVisible(on: boolean): void;
@@ -88,7 +87,7 @@ export function createHud(root: HTMLElement): Hud {
       clearTimeout(bannerTimer);
       bannerTimer = window.setTimeout(() => bannerEl.classList.remove("show"), ms);
     },
-    showResults(result, players, localId, onAgain, onHome) {
+    showResults(result, players, localId, actions, subtitle) {
       const byId = new Map(players.map((p) => [p.id, p]));
       const mine = result.placements.find((p) => p.playerId === localId);
       const title = result.draw && mine?.place === 1
@@ -100,9 +99,7 @@ export function createHud(root: HTMLElement): Hud {
         .map((pl) => {
           const p = byId.get(pl.playerId)!;
           const by = pl.byId ? byId.get(pl.byId) : null;
-          const cause = pl.cause === EliminationCause.SHOVE && by
-            ? `Shoved by ${esc(by.id === localId ? "you" : by.nickname)}`
-            : CAUSE_LABEL[pl.cause];
+          const cause = esc(causeText(pl.cause, by ? (by.id === localId ? "you" : by.nickname) : null));
           return `<li class="${pl.playerId === localId ? "me" : ""}" style="--slot:${SLOT_COLORS[p.slot % 4]}">
             <span class="place">${ORDINAL[pl.place]}</span>
             <span class="swatch">P${p.slot + 1}</span>
@@ -113,16 +110,18 @@ export function createHud(root: HTMLElement): Hud {
       results.innerHTML = `
         <div class="card">
           <h2>${title}</h2>
-          <p class="sub">${(result.durationMs / 1000).toFixed(1)} s match</p>
+          <p class="sub">${esc(subtitle)}</p>
           <ol>${rows}</ol>
           <div class="actions">
             <button class="btn primary act-again">Play again</button>
+            <button class="btn ghost act-change">Change fighter</button>
             <button class="btn ghost act-home">Home</button>
           </div>
         </div>`;
       results.classList.remove("hidden");
-      results.querySelector<HTMLButtonElement>(".act-again")!.onclick = onAgain;
-      results.querySelector<HTMLButtonElement>(".act-home")!.onclick = onHome;
+      results.querySelector<HTMLButtonElement>(".act-again")!.onclick = actions.onAgain;
+      results.querySelector<HTMLButtonElement>(".act-home")!.onclick = actions.onHome;
+      results.querySelector<HTMLButtonElement>(".act-change")!.onclick = actions.onChangeFighter;
       results.querySelector<HTMLButtonElement>(".act-again")!.focus();
     },
     hideResults() {

@@ -3,7 +3,7 @@ import { createTiles } from "@lava-sumo/shared";
 import { createScene } from "./render/scene";
 import { createControls } from "./input/input";
 import { createHud } from "./ui/hud";
-import { startLocalGame } from "./game/localGame";
+import { startQuickPlay } from "./game/quickPlay";
 import { defaultRandomNick, loadProfile, saveProfile, type Profile } from "./meta/profile";
 import { createSplashScreen } from "./ui/screens/splash";
 import { createHomeScreen } from "./ui/screens/home";
@@ -54,13 +54,17 @@ function startMatch() {
     .lock?.("landscape")
     .catch(() => {});
   home.hide(); // also restores the match camera
-  startLocalGame(gs, controls, hud, {
-    nickname: profile.nickname,
-    character: profile.equippedFighter,
-    onExit: () => {
+  startQuickPlay(gs, controls, hud, {
+    profile,
+    onHome: () => {
       idleActive = true;
       homeActive = true;
       home.show();
+    },
+    onChangeFighter: () => {
+      idleActive = true;
+      homeActive = false;
+      setup.show();
     },
   });
 }
@@ -108,7 +112,7 @@ const setup = createSetupScreen(ui, {
   },
   onFight: () => {
     setup.hide();
-    startMatch(); // Task 13 replaces this with the Quick Play loop
+    startMatch();
   },
 });
 const splash = createSplashScreen(ui, {
