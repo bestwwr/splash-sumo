@@ -86,9 +86,28 @@ Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~40 s): 200 seeded 4-bot 
 - **Measured (600 matches, 4 Hard bots):** Elephant 13.7%, Monkey 68.0%, Turtle 18.4% of wins. Design target is 30–36% each.
 - **Why not tuned now:** every config that hits the target either changes spec-fixed values (dash ×1.5, shell reflects at full force) or makes slam/shell very swingy.
 - **Decision (PO, 2026-11-19):** keep the current spec values for the first playtest. `test/sim/balance.sim.test.ts` prints shares instead of asserting the target. Revisit with playtest feedback; the leading candidate is a Monkey nerf (dash cooldown 6→8 s or distance 4→3.5 m).
+- **Update (PO playtest, 2026-11-19):** PO found Monkey too strong and asked for a longer cooldown. Dash cooldown 6 → **10 s**. Sim, 4 Hard bots (600 matches): Monkey 68.0% → 57.6% (8 s gave 64.1%; 8 s + 3.5 m dash gave 63.0%). The 1-v-1 Hard triangle is unchanged (Monkey still beats Elephant and Turtle ~98%), so the next lever, if needed, is the dash knockback (`DASH_KNOCK_MULT`) or the Hard bot's dash aim.
 
 ### D-SQP-3 · Arenas: volcano first, data-driven
 - **Decision (PO, 2026-11-19):** ship only the volcano (lava) arena now. The map picker shows other arenas as "coming soon" slots. Arenas are defined as data so new ones can be added later without touching the screens.
+
+## Online multiplayer
+
+### D-MP-1 · Cloudflare Workers + Durable Objects (supersedes SPEC D5)
+- **Decision:** the game server runs on Cloudflare Workers with Durable Objects (free plan, SQLite-backed, one DO per room code), replacing Colyseus on Fly.io (SPEC D5).
+- **Why:** free hosting, no card, no cold starts, close to both the US and Thailand.
+- **Standard WebSockets (not hibernating):** lobbies stay in memory. Cost: DO duration is billed while sockets are open.
+
+### D-MP-2 · Server-authoritative snapshots, no prediction
+- **Decision:** server sends snapshots at 20 Hz; clients interpolate with ~100 ms delay. No client-side prediction this milestone.
+- **Rejected:** lockstep, because of cross-browser float determinism risk.
+
+### D-MP-3 · No skin field in the protocol yet
+- Skins are "soon"; the protocol carries no skin field until they exist.
+
+### D-MP-4 · Two environments
+- **Staging:** Worker `lava-sumo-staging` serves the staging client and server same-origin, with a TEST badge. Deploy freely via `pnpm deploy:staging`.
+- **Prod:** Worker `lava-sumo` plus the GitHub Pages client. Deploy only with PO OK.
 
 ## Toolchain
 - Node 26, pnpm 12 workspaces, TypeScript 7 (`strict`, `noUncheckedIndexedAccess`), Vite 8, Vitest 5, three r187.

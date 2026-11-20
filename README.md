@@ -3,19 +3,22 @@
 **Sumo in a volcano.** 90-second matches, one thumb, send a link and play.
 Up to 4 players stand on basalt tiles over a lava lake. The floor cracks and melts tile by tile, and you shove each other in. Last one standing wins.
 
-> Portfolio project: a Product Owner shipping a real-time multiplayer browser game with AI coding agents. Full spec: [`SPEC.md`](SPEC.md) · build decisions: [`DECISIONS.md`](DECISIONS.md).
+> Portfolio project by **Weerawish (Ben)**: a Product Owner shipping a real-time multiplayer browser game with AI coding agents.
+> **📄 Read the [product case study](docs/portfolio/CASE-STUDY.md)**: the problem, key decisions, data and playtests. Full spec: [`SPEC.md`](SPEC.md) · build decisions: [`DECISIONS.md`](DECISIONS.md).
+
+![A Lava Sumo match](docs/portfolio/img/05-match.jpg)
 
 ## Play it here
 
-[**Play Lava Sumo**](https://bestwwr.github.io/splash-sumo/) (goes live after the playtest)
+[**Play Lava Sumo**](https://bestwwr.github.io/splash-sumo/) : solo vs bots is live; online multiplayer is in testing.
 
 ## Status
 
 | Milestone | Scope | Status |
 |---|---|---|
-| 1 · Core loop (local) | Shared deterministic sim, hex arena, collapse, shove, elimination, joystick + keyboard, 3 dummies | ✅ Built, pending real-phone check |
-| 2 · Online | Colyseus server, private rooms, prediction + interpolation, reconnection | ⏳ |
-| 3 · Characters & bots | Elephant / Monkey / Turtle skills, ember spirits, eruption, bot difficulties, solo Quick Play screens | 🧪 Built, playtest pending |
+| 1 · Core loop (local) | Shared deterministic sim, hex arena, collapse, shove, elimination, joystick + keyboard, 3 dummies | ✅ Live |
+| 2 · Online | Cloudflare Workers + Durable Objects, private rooms, server snapshots + interpolation, reconnection | 🧪 In the test environment, phone playtest underway |
+| 3 · Characters & bots | Elephant / Monkey / Turtle skills, ember spirits, eruption, bot difficulties, solo Quick Play screens | ✅ Live (solo Quick Play) |
 | 4 · Polish & launch | Art, audio, PWA, analytics, itch.io | ⏳ |
 
 ## Run it
