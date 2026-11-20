@@ -1,5 +1,5 @@
 import { CHARACTER_IDS, Phase, type BotDifficulty, type CharacterId, type ClientMsg, type ServerMsg } from "@lava-sumo/shared";
-import { FIGHTER_EMOJI } from "../../meta/catalog";
+import { CATALOG, fighterFaceHtml } from "../../meta/catalog";
 
 type LobbyMsg = Extract<ServerMsg, { t: "lobby" }>;
 
@@ -76,7 +76,7 @@ export function createLobbyScreen(root: HTMLElement, deps: LobbyDeps): LobbyScre
       } else {
         if (!m.connected) d.classList.add("dim");
         if (m.id === you) d.classList.add("me");
-        d.innerHTML = `<span class="lobby-face">${FIGHTER_EMOJI[m.character]}</span><span class="lobby-name">${esc(m.nickname)}${
+        d.innerHTML = `${fighterFaceHtml(m.character, "lobby-face")}<span class="lobby-name">${esc(m.nickname)}${
           m.id === lobby.hostId ? " 👑" : ""
         }</span>`;
       }
@@ -92,7 +92,8 @@ export function createLobbyScreen(root: HTMLElement, deps: LobbyDeps): LobbyScre
       b.dataset.fighter = id;
       b.classList.toggle("selected", id === mine);
       b.setAttribute("aria-pressed", String(id === mine));
-      b.textContent = FIGHTER_EMOJI[id];
+      b.setAttribute("aria-label", CATALOG.find((c) => c.fighterId === id)?.name ?? id);
+      b.innerHTML = fighterFaceHtml(id, "lobby-pick");
       fighters.appendChild(b);
     }
 
