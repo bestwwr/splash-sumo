@@ -500,6 +500,11 @@ html, body {
 .setup-card.locked { opacity: 0.5; border-style: dashed; cursor: default; }
 .setup-card:focus-visible, .setup-diff:focus-visible { outline: 3px solid var(--lava-hot); outline-offset: 2px; }
 .setup-face { font-size: calc(30 * var(--u)); line-height: 1; }
+/* Fighter portrait art (replaces the emoji where a fighter has art). */
+img.face-art { display: block; object-fit: cover; border-radius: calc(10 * var(--u)); background: #2a1712; flex: none; }
+img.inv-face { width: calc(92 * var(--u)); height: calc(92 * var(--u)); border-radius: calc(14 * var(--u)); }
+img.inv-big { width: calc(72 * var(--u)); height: calc(72 * var(--u)); border-radius: calc(14 * var(--u)); }
+img.setup-face { width: calc(52 * var(--u)); height: calc(52 * var(--u)); }
 .setup-info { display: flex; flex-direction: column; gap: calc(2 * var(--u)); }
 .setup-name { font-size: calc(15 * var(--u)); font-weight: 800; }
 .setup-sub { font-size: calc(11 * var(--u)); color: var(--ink-dim); }

@@ -1,5 +1,5 @@
 import { CHARACTERS, SKILL_OF } from "@lava-sumo/shared";
-import { CATALOG, FIGHTER_EMOJI, SKILL_INFO, type CatalogItem } from "../../meta/catalog";
+import { CATALOG, SKILL_INFO, fighterFaceHtml, type CatalogItem } from "../../meta/catalog";
 import { fightersForGrid, type Profile } from "../../meta/profile";
 
 export interface InventoryDeps {
@@ -13,7 +13,8 @@ export interface InventoryScreen {
   hide(): void;
 }
 
-const emojiOf = (item: CatalogItem) => (item.fighterId ? FIGHTER_EMOJI[item.fighterId] : "❔");
+const faceOf = (item: CatalogItem, cls: string) =>
+  item.fighterId ? fighterFaceHtml(item.fighterId, cls) : `<span class="${cls}">❔</span>`;
 
 export function createInventoryScreen(root: HTMLElement, deps: InventoryDeps): InventoryScreen {
   const el = document.createElement("div");
@@ -73,7 +74,7 @@ export function createInventoryScreen(root: HTMLElement, deps: InventoryDeps): I
       b.classList.toggle("selected", selected);
       b.classList.toggle("equipped", equipped);
       b.setAttribute("aria-pressed", String(selected));
-      b.innerHTML = `<span class="inv-face">${emojiOf(c)}</span><span class="inv-name">${c.name}</span>${
+      b.innerHTML = `${faceOf(c, "inv-face")}<span class="inv-name">${c.name}</span>${
         equipped ? '<span class="inv-tag">EQUIPPED</span>' : ""
       }`;
       grid.appendChild(b);
@@ -94,7 +95,7 @@ export function createInventoryScreen(root: HTMLElement, deps: InventoryDeps): I
     const skill = SKILL_INFO[SKILL_OF[item.fighterId]];
     const equipped = deps.getProfile().equippedFighter === item.fighterId;
     panel.innerHTML = `
-      <div class="inv-head"><span class="inv-big">${emojiOf(item)}</span><div><div class="inv-title">${item.name}</div><div class="inv-role">${item.role ?? ""}</div></div></div>
+      <div class="inv-head">${faceOf(item, "inv-big")}<div><div class="inv-title">${item.name}</div><div class="inv-role">${item.role ?? ""}</div></div></div>
       ${bar("Power", ch.stats.power)}${bar("Agility", ch.stats.agility)}${bar("Endurance", ch.stats.endurance)}
       <div class="inv-skill"><b>${skill.name}</b> — ${skill.blurb}</div>
       <button class="btn primary inv-equip" type="button" ${equipped ? "disabled" : ""}>${equipped ? "✓ Equipped" : "Equip"}</button>`;
