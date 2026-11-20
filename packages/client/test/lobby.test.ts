@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Phase, type LobbyMember } from "@lava-sumo/shared";
+import { Phase, type LobbyMember } from "@splash-sumo/shared";
 import { createLobbyScreen } from "../src/ui/screens/lobby";
 
 const members: LobbyMember[] = [

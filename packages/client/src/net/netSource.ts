@@ -16,7 +16,7 @@ import {
   type SimEvent,
   type Snap,
   type StartMsg,
-} from "@lava-sumo/shared";
+} from "@splash-sumo/shared";
 import type { InputState } from "../input/input";
 import type { MatchSource, SourceEvents } from "../game/matchSource";
 import { InputSender } from "./inputSender";

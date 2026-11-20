@@ -222,9 +222,9 @@
   - `reaction delay: a hard bot reacts to a new threat ≥ 120 ms and < 300 ms after it appears`.
   - `bot think time: average BotController.input() < 1 ms` over a 90 s match (use `performance.now()` in the test only; it is not called from `src/`).
 - [ ] **Step 2: Write the difficulty sim** (`test/sim/difficulty.sim.test.ts`): 200 seeded matches each of 2 Hard vs 2 Easy, 2 Hard vs 2 Medium, 2 Medium vs 2 Easy (random fighters). Assert the stronger side's win share is ≥ 70% in each pairing. Print the table.
-- [ ] **Step 3:** Run `pnpm --filter @lava-sumo/shared test`. Expected: bot tests FAIL.
+- [ ] **Step 3:** Run `pnpm --filter @splash-sumo/shared test`. Expected: bot tests FAIL.
 - [ ] **Step 4:** Implement the controller, scoring, names.
-- [ ] **Step 5:** Run `pnpm test`, then `pnpm --filter @lava-sumo/shared sim`. Expected: fast tests pass and the difficulty sim passes. Tune weights/noise until it does.
+- [ ] **Step 5:** Run `pnpm test`, then `pnpm --filter @splash-sumo/shared sim`. Expected: fast tests pass and the difficulty sim passes. Tune weights/noise until it does.
 - [ ] **Step 6:** Log the difficulty table and the chosen weights in `DECISIONS.md` (new section "Solo Quick Play").
 - [ ] **Step 7:** Commit: `feat(shared): utility-AI bots with three difficulties`.
 
@@ -237,7 +237,7 @@
 **Interfaces:** Consumes `BotController`, `pickBotSetup`, all skills.
 
 - [ ] **Step 1: Write the balance sim:** 600 seeded matches, 4 **Hard** bots with random fighters (repeats allowed). Win share per fighter = that fighter's wins ÷ all non-draw wins (a win counts once, for the winner's fighter). Assert every share ∈ [0.30, 0.36]. Also print Medium shares (not asserted) and a 1-v-1 triangle table (200 matches per pair, Hard) for Elephant>Turtle, Turtle>Monkey, Monkey>Elephant (not asserted; design intent).
-- [ ] **Step 2:** Run `pnpm --filter @lava-sumo/shared sim`. Expected: probably FAIL at first. Record the numbers.
+- [ ] **Step 2:** Run `pnpm --filter @splash-sumo/shared sim`. Expected: probably FAIL at first. Record the numbers.
 - [ ] **Step 3:** Tune only skill numbers and `SLAM_KNOCK_SPEED`/`SHELL_REFLECT_MULT`/`DASH_KNOCK_MULT` in `config.ts` (not the A.5 stats, cooldowns, durations or radii, which the spec fixes) until the shares pass. Keep `pnpm test` green (the shove-feel guard tests must still pass).
 - [ ] **Step 4:** Log the before/after shares, the triangle table and every changed number in `DECISIONS.md`.
 - [ ] **Step 5:** Commit: `tune(shared): fighter balance to 30–36% win share`.
@@ -266,7 +266,7 @@
   - `arenasForPicker pads the single volcano arena with 2 nulls`.
   - `save → load round-trips`.
   - `fightersForGrid pads to 6 with nulls; 7 owned would pad to 9`.
-- [ ] **Step 2:** Run `pnpm --filter @lava-sumo/client test`. Expected: FAIL.
+- [ ] **Step 2:** Run `pnpm --filter @splash-sumo/client test`. Expected: FAIL.
 - [ ] **Step 3:** Implement.
 - [ ] **Step 4:** `pnpm test && pnpm typecheck`: pass.
 - [ ] **Step 5:** Commit: `feat(client): profile persistence, inventory and arena catalog`.
@@ -286,7 +286,7 @@
 - [ ] **Step 1:** Implement `fighters.ts` and switch `players.ts` to it. Delete `buildSumo`.
 - [ ] **Step 2:** Implement `skillFx.ts` and the skill button ring.
 - [ ] **Step 3: Visual check** in Chrome with `pnpm dev`, through a temporary dev-only URL flag `?fx` that spawns one bot of each fighter. Verify every telegraph is visible: the slam ring before impact, eruption circles 1.5 s before impact, rock landing shadows. Remove nothing; `?fx` stays as a dev tool, ignored in production builds (`import.meta.env.DEV`).
-- [ ] **Step 4:** `pnpm typecheck && pnpm --filter @lava-sumo/client build`. Expected: clean; gzip JS < 300 KB.
+- [ ] **Step 4:** `pnpm typecheck && pnpm --filter @splash-sumo/client build`. Expected: clean; gzip JS < 300 KB.
 - [ ] **Step 5:** Commit: `feat(client): fighter models and skill/spirit/eruption visuals`.
 
 ---
@@ -297,7 +297,7 @@
 
 **Interfaces:**
 - Consumes: `loadProfile/saveProfile`, `CATALOG`, `buildFighter(…, { showcase: true })`.
-- Produces: `createSplashScreen(root: HTMLElement, deps: { onContinue(): void }): { show(): void; hide(): void }`: full-screen over the live scene, title **LAVA SUMO**, a pulsing **"Tap to play"**, footer "A Best & Ben game"; the first pointerdown or keydown anywhere calls `onContinue` once. `main.ts` shows it once per page load, then Home.
+- Produces: `createSplashScreen(root: HTMLElement, deps: { onContinue(): void }): { show(): void; hide(): void }`: full-screen over the live scene, title **SPLASH SUMO**, a pulsing **"Tap to play"**, footer "A Best & Ben game"; the first pointerdown or keydown anywhere calls `onContinue` once. `main.ts` shows it once per page load, then Home.
 - Produces: `createHomeScreen(root: HTMLElement, deps: { gs: GameScene; getProfile(): Profile; setProfile(p: Profile): void; onQuickPlay(): void; onInventory(): void }): { show(): void; hide(): void }`. Plus `GameScene.setShowcase(model: FighterModel | null)`, which places the model at the arena center, idle-animating, with the camera framed slightly left so the fighter sits at ~35% of the width (as in the mockup).
 - Layout (approved mockup `home-layout.html` option B): top-left title; the fighter center-left with a "Nickname · Fighter" chip and a "Tap to change ▸" chip (tap → `onInventory`); right column: **⚡ Quick Play** (primary, largest; calls `onQuickPlay`, which opens the Setup screen from Task 12), **🎒 Inventory**, and a disabled **👥 Play with friends · coming soon**. Nickname is editable inline (tap the chip → input; sanitize with the existing `sanitizeNickname`; save on blur/Enter).
 - [ ] **Step 1:** Implement the screen and `setShowcase`; replace the M1 home card in `main.ts`.
@@ -341,7 +341,7 @@
   - `picking a difficulty saves it`.
   - `opens with the saved picks pre-selected`.
   - `Fight! calls onFight; Back calls onBack`.
-- [ ] **Step 2:** Run `pnpm --filter @lava-sumo/client test`. Expected: FAIL.
+- [ ] **Step 2:** Run `pnpm --filter @splash-sumo/client test`. Expected: FAIL.
 - [ ] **Step 3:** Implement and wire the routing.
 - [ ] **Step 4: Check in Chrome** at 844×390: everything fits, picks survive a reload, Home → Quick Play → Fight! is two taps.
 - [ ] **Step 5:** `pnpm test && pnpm typecheck`. Commit: `feat(client): quick play setup screen with map and fighter select`.
@@ -374,7 +374,7 @@
 
 **Interfaces:**
 - `vite.config.ts`: `base: "./"` (relative; works under any repo name).
-- `pages.yml`: on `push` to `main` + `workflow_dispatch`. Jobs: checkout → `pnpm/action-setup` → `actions/setup-node` (Node 22 LTS, pnpm cache) → `pnpm install --frozen-lockfile` → `pnpm test` → `pnpm --filter @lava-sumo/client build` → `actions/upload-pages-artifact` (path `packages/client/dist`) → `actions/deploy-pages`. Permissions: `pages: write`, `id-token: write`, `contents: read`. Pin each action to its current major version.
+- `pages.yml`: on `push` to `main` + `workflow_dispatch`. Jobs: checkout → `pnpm/action-setup` → `actions/setup-node` (Node 22 LTS, pnpm cache) → `pnpm install --frozen-lockfile` → `pnpm test` → `pnpm --filter @splash-sumo/client build` → `actions/upload-pages-artifact` (path `packages/client/dist`) → `actions/deploy-pages`. Permissions: `pages: write`, `id-token: write`, `contents: read`. Pin each action to its current major version.
 - [ ] **Step 1:** Write the workflow and the base change. Build locally, then serve `dist` from a sub-path to prove relative paths work: `cd packages/client && pnpm build && npx vite preview --base /splash-sumo/` and load `http://localhost:4173/splash-sumo/`. Expected: the game loads, no 404s.
 - [ ] **Step 2:** README: replace the Milestone table's row status and add a "▶ Play it" link placeholder `https://bestwwr.github.io/splash-sumo/` marked "(goes live after the playtest)".
 - [ ] **Step 3:** Commit on the branch: `ci: github pages deploy workflow`. **Do not merge yet.**

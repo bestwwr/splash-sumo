@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CONFIG, type CharacterId } from "@lava-sumo/shared";
+import { CONFIG, type CharacterId } from "@splash-sumo/shared";
 
 /** Slot colors (belt + outline). Paired with slot numbers in the HUD so color is never the only cue. */
 export const SLOT_COLORS = ["#ff4d4d", "#3fa7ff", "#5bd85b", "#ffd23f"] as const;

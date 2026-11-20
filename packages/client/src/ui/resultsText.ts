@@ -1,4 +1,4 @@
-import { EliminationCause, type BotDifficulty } from "@lava-sumo/shared";
+import { EliminationCause, type BotDifficulty } from "@splash-sumo/shared";
 
 const CAUSE_LABEL: Record<EliminationCause, string> = {
   [EliminationCause.NONE]: "Survived",

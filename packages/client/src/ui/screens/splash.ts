@@ -8,7 +8,7 @@ export function createSplashScreen(root: HTMLElement, deps: { onContinue(): void
   const el = document.createElement("div");
   el.className = "splash hidden";
   el.innerHTML = `
-    <h1 class="splash-title">LAVA <span>SUMO</span></h1>
+    <h1 class="splash-title">SPLASH <span>SUMO</span></h1>
     <p class="splash-tap">Tap to play</p>
     <p class="splash-foot">A Best &amp; Ben game</p>`;
   root.appendChild(el);

@@ -23,7 +23,7 @@ import {
   type ServerMsg,
   type SimEvent,
   type Tile,
-} from "@lava-sumo/shared";
+} from "@splash-sumo/shared";
 
 export type ConnId = string;
 export type Outgoing = { to: ConnId | "all"; msg: ServerMsg } | { close: ConnId; code: ErrorCode };

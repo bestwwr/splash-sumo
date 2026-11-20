@@ -1,5 +1,5 @@
 import "./style.css";
-import { createTiles } from "@lava-sumo/shared";
+import { createTiles } from "@splash-sumo/shared";
 import { createScene } from "./render/scene";
 import { createControls } from "./input/input";
 import { createHud } from "./ui/hud";
@@ -11,9 +11,17 @@ import { createInventoryScreen } from "./ui/screens/inventory";
 import { createSetupScreen } from "./ui/screens/setup";
 import { createOnlineFlow } from "./game/onlinePlay";
 import { mountEnvBadge } from "./ui/toast";
-import { normalizeRoomCode } from "@lava-sumo/shared";
+import { normalizeRoomCode } from "@splash-sumo/shared";
+import { migrateStorageKeys } from "./meta/storageKeys";
 
-const ID_KEY = "lavasumo.anonId";
+// Must run before anything below reads storage (the game was renamed from Lava Sumo).
+try {
+  migrateStorageKeys(localStorage);
+} catch {
+  /* storage unavailable */
+}
+
+const ID_KEY = "splashsumo.anonId";
 
 function storage(key: string, value?: string): string | null {
   try {

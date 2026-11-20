@@ -1,6 +1,6 @@
 import { exports } from "cloudflare:workers";
 import { describe, expect, it } from "vitest";
-import type { ServerMsg } from "@lava-sumo/shared";
+import type { ServerMsg } from "@splash-sumo/shared";
 
 // `exports.default` is the Worker's default export (typed loosely by the plugin).
 const worker = (exports as unknown as { default: { fetch(r: Request): Promise<Response> } }).default;

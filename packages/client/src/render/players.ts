@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CONFIG, SkillPhase, SKILL_OF, isDashing, isShelled, type CharacterId, type Player } from "@lava-sumo/shared";
+import { CONFIG, SkillPhase, SKILL_OF, isDashing, isShelled, type CharacterId, type Player } from "@splash-sumo/shared";
 
 import { buildFighter, SLOT_COLORS, type FighterModel } from "./fighters";
 export { SLOT_COLORS };

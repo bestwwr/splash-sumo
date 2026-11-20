@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { fightersForGrid, loadProfile, saveProfile, sanitizeNickname, type KeyValueStorage } from "../src/meta/profile";
 import { CATALOG, type CatalogItem } from "../src/meta/catalog";
 
-const KEY = "lavasumo.profile.v1";
+const KEY = "splashsumo.profile.v1";
 const nick = () => "Rando42";
 
 function fakeStorage(init: Record<string, string> = {}): KeyValueStorage & { data: Record<string, string> } {
@@ -54,7 +54,7 @@ describe("loadProfile", () => {
   });
 
   it("migrates the M1 nickname key", () => {
-    const p = loadProfile(fakeStorage({ "lavasumo.nickname": "Old Timer" }), nick);
+    const p = loadProfile(fakeStorage({ "splashsumo.nickname": "Old Timer" }), nick);
     expect(p.nickname).toBe("Old Timer");
   });
 

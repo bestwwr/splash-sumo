@@ -1,4 +1,4 @@
-import type { CharacterId, SkillId } from "@lava-sumo/shared";
+import type { CharacterId, SkillId } from "@splash-sumo/shared";
 import elephantArt from "../assets/fighters/elephant.jpg";
 import monkeyArt from "../assets/fighters/monkey.jpg";
 import turtleArt from "../assets/fighters/turtle.jpg";

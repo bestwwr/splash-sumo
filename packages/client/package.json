@@ -1,5 +1,5 @@
 {
-  "name": "@lava-sumo/client",
+  "name": "@splash-sumo/client",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -11,7 +11,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@lava-sumo/shared": "workspace:*",
+    "@splash-sumo/shared": "workspace:*",
     "three": "^0.187.0"
   },
   "devDependencies": {

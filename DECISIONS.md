@@ -40,7 +40,7 @@ Decisions made while building, per SPEC §0. Spec-level decision records (D1–D
 - Floating joystick on the left 55 % of the screen; its base follows the thumb if dragged past the rim.
 
 ### D-M1-9 · Name
-- The spec says **Lava Sumo**; the repo/folder is **Splash Sumo**. The in-game title uses the spec name for now. *Open:* confirm with the PO.
+- The spec first said **Lava Sumo** while the repo was **Splash Sumo**. **Resolved 2026-11-20:** the PO named the game **Splash Sumo**. Everything was renamed: the title, share text, docs, packages (`@splash-sumo/*`) and Workers (`splash-sumo`, `splash-sumo-staging`). Saved browser data moves from `lavasumo.*` to `splashsumo.*` keys on first load, so players keep their profile. "Volcano" stays the name of the first stage; the lava itself belongs to that stage, and future stages may have other hazards.
 
 ## Solo Quick Play
 
@@ -69,7 +69,7 @@ Chosen tuning (`config.ts`; shared bot constants such as threat multipliers and 
 | wander / inertia | 0.6 / 0.2 | 0 / 0.25 | 0 / 0.25 |
 | skill timing / stick speed | sloppy / 0.7 | in range / 1 | timed + lead / 1 |
 
-Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~40 s): 200 seeded 4-bot matches per pairing, random fighters, sides alternate by slot. Share = strong wins / decided matches (draws excluded; counting draws as losses lowers each by ≤ 1 point).
+Difficulty sim (`pnpm --filter @splash-sumo/shared sim`, ~40 s): 200 seeded 4-bot matches per pairing, random fighters, sides alternate by slot. Share = strong wins / decided matches (draws excluded; counting draws as losses lowers each by ≤ 1 point).
 
 | Pairing | Strong wins | Weak wins | Draws | Strong share |
 |---|---|---|---|---|
@@ -106,8 +106,8 @@ Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~40 s): 200 seeded 4-bot 
 - Skins are "soon"; the protocol carries no skin field until they exist.
 
 ### D-MP-4 · Two environments
-- **Staging:** Worker `lava-sumo-staging` serves the staging client and server same-origin, with a TEST badge. Deploy freely via `pnpm deploy:staging`.
-- **Prod:** Worker `lava-sumo` plus the GitHub Pages client. Deploy only with PO OK.
+- **Staging:** Worker `splash-sumo-staging` serves the staging client and server same-origin, with a TEST badge. Deploy freely via `pnpm deploy:staging`.
+- **Prod:** Worker `splash-sumo` plus the GitHub Pages client. Deploy only with PO OK.
 
 ## Toolchain
 - Node 26, pnpm 12 workspaces, TypeScript 7 (`strict`, `noUncheckedIndexedAccess`), Vite 8, Vitest 5, three r187.

@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CONFIG, SKILL_OF, SkillPhase, isDashing, isShelled, spiritPosition, type MatchState, type SimEvent } from "@lava-sumo/shared";
+import { CONFIG, SKILL_OF, SkillPhase, isDashing, isShelled, spiritPosition, type MatchState, type SimEvent } from "@splash-sumo/shared";
 import { SLOT_COLORS } from "./fighters";
 
 /**

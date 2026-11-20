@@ -1,4 +1,4 @@
-import { CHARACTERS, SKILL_OF } from "@lava-sumo/shared";
+import { CHARACTERS, SKILL_OF } from "@splash-sumo/shared";
 import { CATALOG, SKILL_INFO, fighterFaceHtml, type CatalogItem } from "../../meta/catalog";
 import { fightersForGrid, type Profile } from "../../meta/profile";
 

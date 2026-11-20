@@ -1,4 +1,4 @@
-import { CHARACTER_IDS, Phase, type BotDifficulty, type CharacterId, type ClientMsg, type ServerMsg } from "@lava-sumo/shared";
+import { CHARACTER_IDS, Phase, type BotDifficulty, type CharacterId, type ClientMsg, type ServerMsg } from "@splash-sumo/shared";
 import { CATALOG, fighterFaceHtml } from "../../meta/catalog";
 
 type LobbyMsg = Extract<ServerMsg, { t: "lobby" }>;
@@ -115,7 +115,7 @@ export function createLobbyScreen(root: HTMLElement, deps: LobbyDeps): LobbyScre
     const url = `${location.origin}${location.pathname}?room=${code}`;
     try {
       if (navigator.share) {
-        await navigator.share({ title: "Lava Sumo", text: `Join my Lava Sumo room ${code}`, url });
+        await navigator.share({ title: "Splash Sumo", text: `Join my Splash Sumo room ${code}`, url });
         return;
       }
       await navigator.clipboard.writeText(url);

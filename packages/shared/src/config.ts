@@ -98,7 +98,7 @@ const BASE = {
   // --- Input validation (§2.4) ---
   MAX_INPUT_LENGTH: 1,
 
-  // --- Bots (SPEC §3.4). Tuned with `pnpm --filter @lava-sumo/shared sim`; see DECISIONS.md "Solo Quick Play". ---
+  // --- Bots (SPEC §3.4). Tuned with `pnpm --filter @splash-sumo/shared sim`; see DECISIONS.md "Solo Quick Play". ---
   BOT_THINK_MS: 100,
   /** A decision made at time t takes effect at t + reaction. */
   BOT_REACTION_MS: { easy: 600, medium: 300, hard: 120 },

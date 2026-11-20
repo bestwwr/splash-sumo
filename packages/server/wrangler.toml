@@ -1,5 +1,5 @@
-# Prod: Worker `lava-sumo` (API only; the client is served from GitHub Pages).
-name = "lava-sumo"
+# Prod: Worker `splash-sumo` (API only; the client is served from GitHub Pages).
+name = "splash-sumo"
 main = "src/worker.ts"
 compatibility_date = "2026-11-19"
 
@@ -11,9 +11,9 @@ class_name = "MatchRoom"
 tag = "v1"
 new_sqlite_classes = ["MatchRoom"]
 
-# Staging: Worker `lava-sumo-staging` serves the staging client AND the API.
+# Staging: Worker `splash-sumo-staging` serves the staging client AND the API.
 [env.staging]
-name = "lava-sumo-staging"
+name = "splash-sumo-staging"
 # API paths run the Worker first; everything else is served from the static assets.
 assets = { directory = "../client/dist-staging", run_worker_first = ["/rooms", "/rooms/*", "/health"] }
 

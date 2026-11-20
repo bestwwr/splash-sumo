@@ -1,5 +1,5 @@
 {
-  "name": "@lava-sumo/server",
+  "name": "@splash-sumo/server",
   "version": "0.1.0",
   "private": true,
   "type": "module",
@@ -10,7 +10,7 @@
     "deploy": "wrangler deploy"
   },
   "dependencies": {
-    "@lava-sumo/shared": "workspace:*"
+    "@splash-sumo/shared": "workspace:*"
   },
   "devDependencies": {
     "@cloudflare/vitest-plugin": "^1.8.4",

@@ -1,6 +1,6 @@
 import { defineConfig } from "vitest/config";
 
-// Slow seeded simulations (e.g. bot difficulty balance). Run with `pnpm --filter @lava-sumo/shared sim`.
+// Slow seeded simulations (e.g. bot difficulty balance). Run with `pnpm --filter @splash-sumo/shared sim`.
 export default defineConfig({
   test: {
     include: ["test/sim/**/*.sim.test.ts"],

@@ -12,7 +12,7 @@
  * Any jump in the prediction between frames (a new snap, a new RTT or clock estimate) beyond what the fighter's
  * own velocity explains is spread over NET_PREDICT_SMOOTH_MS instead of snapping; jumps over NET_PREDICT_SNAP_M snap.
  */
-import { CONFIG, applyMovement, type Player, type PlayerInput } from "@lava-sumo/shared";
+import { CONFIG, applyMovement, type Player, type PlayerInput } from "@splash-sumo/shared";
 
 export interface SentInput {
   at: number; // local ms when sent

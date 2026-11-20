@@ -2,8 +2,8 @@
  * Online flow: Friends screen -> Lobby -> match (NetSource) -> back to Lobby.
  * Owns the room connection; screens and the match view are driven from its messages.
  */
-import type { CharacterId, ClientMsg, ServerMsg, StartMsg } from "@lava-sumo/shared";
-import { Phase } from "@lava-sumo/shared";
+import type { CharacterId, ClientMsg, ServerMsg, StartMsg } from "@splash-sumo/shared";
+import { Phase } from "@splash-sumo/shared";
 import type { GameScene } from "../render/scene";
 import type { Controls } from "../input/input";
 import type { Hud } from "../ui/hud";

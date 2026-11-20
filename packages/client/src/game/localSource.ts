@@ -8,7 +8,7 @@ import {
   step,
   type MatchState,
   type PlayerInput,
-} from "@lava-sumo/shared";
+} from "@splash-sumo/shared";
 import type { InputState } from "../input/input";
 import type { Profile } from "../meta/profile";
 import type { MatchSource, SourceEvents } from "./matchSource";

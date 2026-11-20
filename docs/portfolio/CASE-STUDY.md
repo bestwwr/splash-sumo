@@ -1,4 +1,4 @@
-# Lava Sumo: product case study
+# Splash Sumo: product case study
 
 **A Product Owner shipping a real-time multiplayer browser game with AI coding agents.**
 

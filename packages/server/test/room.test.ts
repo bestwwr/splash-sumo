@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { CONFIG, Phase, type ClientMsg, type ServerMsg } from "@lava-sumo/shared";
+import { CONFIG, Phase, type ClientMsg, type ServerMsg } from "@splash-sumo/shared";
 import { RoomLogic, type Outgoing } from "../src/room";
 
 function makeRoom() {

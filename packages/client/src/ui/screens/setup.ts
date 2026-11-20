@@ -1,4 +1,4 @@
-import { SKILL_OF, type BotDifficulty, type CharacterId } from "@lava-sumo/shared";
+import { SKILL_OF, type BotDifficulty, type CharacterId } from "@splash-sumo/shared";
 import { arenasForPicker, SKILL_INFO, fighterFaceHtml } from "../../meta/catalog";
 import { fightersForGrid, type Profile } from "../../meta/profile";
 
