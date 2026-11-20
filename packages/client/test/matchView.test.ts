@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { Phase, createMatch, type MatchResult, type MatchState, type PlayerSetup } from "@lava-sumo/shared";
+import { CONFIG, Phase, createMatch, type MatchResult, type MatchState, type PlayerSetup } from "@lava-sumo/shared";
 import type { MatchSource } from "../src/game/matchSource";
 
 vi.mock("../src/render/players", () => ({
@@ -59,7 +59,10 @@ describe("matchView", () => {
     const h = harness("p1", st);
     h.frame();
     h.frame();
-    vi.advanceTimersByTime(10);
+    // Same pause as after matchEnd, so an online frame that reaches RESULTS early doesn't cut the last fall short.
+    vi.advanceTimersByTime(CONFIG.RESULTS_DELAY_MS - 1);
+    expect(h.hud.showResults).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
     expect(h.hud.showResults).toHaveBeenCalledTimes(1);
     h.view.stop();
   });

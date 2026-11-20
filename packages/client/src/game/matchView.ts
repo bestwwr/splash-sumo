@@ -92,7 +92,7 @@ export function runMatchView(gs: GameScene, controls: Controls, hud: Hud, source
           gs.shake(0.3);
           break;
         case "matchEnd":
-          scheduleResults(e.result, state, 1100);
+          scheduleResults(e.result, state, CONFIG.RESULTS_DELAY_MS);
           break;
         case "fall":
           break;
@@ -117,7 +117,8 @@ export function runMatchView(gs: GameScene, controls: Controls, hud: Hud, source
     }
 
     // Rejoined into a finished match: no matchEnd event will ever arrive, so go by the state itself.
-    if (!resultsScheduled && state.phase === Phase.RESULTS && state.result) scheduleResults(state.result, state, 0);
+    // Online, the interpolated frame can reach RESULTS before the matchEnd event is drained, so keep the same delay.
+    if (!resultsScheduled && state.phase === Phase.RESULTS && state.result) scheduleResults(state.result, state, CONFIG.RESULTS_DELAY_MS);
 
     const n = source.countdown();
     if (n !== lastShown) {

@@ -195,6 +195,8 @@ const BASE = {
   // --- Client match presentation ---
   GO_DISPLAY_MS: 600,
   SOLO_COUNTDOWN_MS: 3000,
+  // Pause after the match ends before the results screen, so the last fall plays out.
+  RESULTS_DELAY_MS: 1100,
 } as const;
 
 /**
