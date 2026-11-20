@@ -183,12 +183,12 @@ export class RoomLogic {
       this.acc += nowMs - this.lastSimMs;
       this.lastSimMs = nowMs;
       let steps = 0;
-      while (this.acc >= CONFIG.TICK_MS && steps < CONFIG.MAX_CATCHUP_STEPS && this.state!.phase === Phase.PLAYING) {
+      while (this.acc >= CONFIG.TICK_MS && steps < CONFIG.NET_SERVER_MAX_CATCHUP_STEPS && this.state!.phase === Phase.PLAYING) {
         this.stepOnce(nowMs);
         this.acc -= CONFIG.TICK_MS;
         steps++;
       }
-      if (steps === CONFIG.MAX_CATCHUP_STEPS) this.acc = 0;
+      if (steps === CONFIG.NET_SERVER_MAX_CATCHUP_STEPS) this.acc = 0;
       if (this.state!.phase === Phase.PLAYING) {
         this.maybeSnap(nowMs, out);
       } else {

@@ -7,6 +7,9 @@ const BASE = {
   TICK_HZ: 30,
   TICK_MS: 1000 / 30,
   MAX_CATCHUP_STEPS: 3,
+  /** The online server catches up further after a timer stall (Durable Object stalls of ~140 ms were measured),
+   *  so match time doesn't fall behind real time; client prediction relies on that (D-NET-PREDICT). */
+  NET_SERVER_MAX_CATCHUP_STEPS: 8,
 
   // --- Arena (A.2) ---
   ARENA_RADIUS: 5, // rings → 91 tiles
@@ -179,8 +182,18 @@ const BASE = {
   NET_INTERP_MAX_DELAY_MS: 250,
   /** How much recent snap-arrival history the adaptive delay looks at. */
   NET_JITTER_WINDOW_MS: 3000,
+  /** The server-clock estimate uses the fastest arrival of only this recent history, so it follows drift. */
+  NET_OFFSET_WINDOW_MS: 1000,
   /** Safety margin added on top of the worst recent arrival gap. */
   NET_JITTER_MARGIN_MS: 10,
+  /** Draw your own fighter from local inputs instead of waiting a server round trip (D-NET-PREDICT). */
+  NET_PREDICT_LOCAL: true,
+  /** Round-trip guess until the first input is acknowledged. */
+  NET_RTT_INIT_MS: 150,
+  /** When the server corrects your predicted position, ease the difference out over about this long. */
+  NET_PREDICT_SMOOTH_MS: 120,
+  /** Corrections bigger than this (a big shove, a respawn) jump instead of sliding. */
+  NET_PREDICT_SNAP_M: 2,
   NET_COUNTDOWN_MS: 3000,
   NET_RECONNECT_MS: 15_000,
   NET_EMPTY_ROOM_MS: 30_000,

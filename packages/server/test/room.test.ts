@@ -117,6 +117,16 @@ describe("lobby", () => {
 });
 
 describe("match", () => {
+  it("a ~200 ms timer stall is fully caught up, so match time keeps pace with real time", () => {
+    const h = startedRoom(1);
+    h.run(3300); // countdown done, playing
+    const before = snaps(h.run(100)).pop()!.timeMs;
+    h.advance(200); // the timer doesn't fire for 200 ms
+    const out = h.room.tick(h.now());
+    const after = snaps(out).pop()!.timeMs;
+    expect(after - before).toBeGreaterThanOrEqual(200 - CONFIG.TICK_MS);
+  });
+
   it("start from host sends 4 setups, then countdown -> playing with snaps every ~50ms", () => {
     const h = startedRoom(2);
     const start = msgsTo(h.startOut, "c1", "start")[0] as Extract<ServerMsg, { t: "start" }>;

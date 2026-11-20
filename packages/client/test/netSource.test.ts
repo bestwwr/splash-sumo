@@ -23,7 +23,7 @@ function snapAt(n: number, opts: { x?: number; events?: SimEvent[]; phase?: Phas
 function make() {
   let now = 0;
   const sent: ClientMsg[] = [];
-  const src = new NetSource(start, "a", (m) => sent.push(m), () => now);
+  const src = new NetSource(start, "b", (m) => sent.push(m), () => now); // local = "b": tests read interpolated player "a"
   // In the app the receive time and the frame clock are the same clock (performance.now()):
   // a snap arrives "now", and each frame moves the clock on by its length.
   const onSnap = src.onSnap.bind(src);
@@ -225,14 +225,21 @@ describe("NetSource", () => {
     expect(c.delayMs()).toBe(CONFIG.NET_INTERP_DELAY_MS); // 50 + margin < floor
     c.add(700, 550); // 150 ms late after a 50 ms gap -> needs 200
     expect(c.delayMs()).toBe(200 + CONFIG.NET_JITTER_MARGIN_MS);
-    c.add(5000, 600); // 4.4 s late: clamped
+    c.add(1100, 560); // 540 ms late (still inside the offset window): clamped
     expect(c.delayMs()).toBe(CONFIG.NET_INTERP_MAX_DELAY_MS);
     const d = c.delayMs();
-    c.add(5100, 600); // sim time not advancing: ignored
+    c.add(1200, 560); // sim time not advancing: ignored
     expect(c.delayMs()).toBe(d);
     // Old samples fall out of the window; once the window is even again the delay returns to the floor.
-    for (let i = 1; i <= 80; i++) c.add(5000 + i * 50, 600 + i * 50);
+    for (let i = 1; i <= 80; i++) c.add(1100 + i * 50, 560 + i * 50);
     expect(c.delayMs()).toBe(CONFIG.NET_INTERP_DELAY_MS);
-    expect(c.target(9000)).toBeCloseTo(9000 - 4400 - CONFIG.NET_INTERP_DELAY_MS, 5);
+    expect(c.target(9000)).toBeCloseTo(9000 - 540 - CONFIG.NET_INTERP_DELAY_MS, 5);
+  });
+
+  it("J4: when the server's match clock falls behind (a stall it couldn't catch up), the estimate follows within ~1 s", () => {
+    const c = new JitterClock();
+    for (let i = 0; i <= 40; i++) c.add(i * 50, i * 50); // offset 0
+    for (let i = 41; i <= 80; i++) c.add(i * 50, i * 50 - 100); // from here the server runs 100 ms behind
+    expect(c.serverTime(4000)).toBeCloseTo(4000 - 100, 5);
   });
 });

@@ -1,9 +1,11 @@
 /** Sends player input to the server: change-only, 2dp quantized, rate-limited, with keep-alive. */
 import { CONFIG, type ClientMsg } from "@lava-sumo/shared";
 import type { InputState } from "../input/input";
+import type { SentInput } from "./prediction";
 
 const MIN_INTERVAL_MS = 1000 / CONFIG.NET_INPUT_MAX_PER_SEC;
 const q2 = (n: number) => Math.round(n * 100) / 100;
+const HISTORY_MS = 3000;
 
 export class InputSender {
   private seq = 0;
@@ -11,6 +13,8 @@ export class InputSender {
   private queue: InputState[] = [];
   private lastSendAt = -Infinity;
   private lastKeepAliveAt: number;
+  /** Inputs sent in the last few seconds, oldest first (for local prediction). */
+  readonly history: SentInput[] = [];
 
   constructor(
     private readonly send: (m: ClientMsg) => void,
@@ -53,12 +57,16 @@ export class InputSender {
     this.seq = 0;
     this.observed = null;
     this.queue = [];
+    this.history.length = 0;
   }
 
   private emit(i: InputState, now: number): void {
     this.seq++;
     this.lastSendAt = now;
     this.lastKeepAliveAt = now;
+    this.history.push({ at: now, seq: this.seq, dirX: i.dirX, dirZ: i.dirZ });
+    // Keep at least one entry: it is the input the server is still holding.
+    while (this.history.length > 1 && this.history[1]!.at < now - HISTORY_MS) this.history.shift();
     this.send({ t: "in", seq: this.seq, dirX: i.dirX, dirZ: i.dirZ, skill: i.skill });
   }
 }

@@ -20,6 +20,7 @@ import {
 import type { InputState } from "../input/input";
 import type { MatchSource, SourceEvents } from "../game/matchSource";
 import { InputSender } from "./inputSender";
+import { LocalPredictor, type Predicted } from "./prediction";
 
 const BUF_KEEP_MS = 1000;
 
@@ -41,7 +42,8 @@ export class JitterClock {
     const cut = recvMs - CONFIG.NET_JITTER_WINDOW_MS;
     while (this.samples.length > 2 && this.samples[0]!.recv < cut) this.samples.shift();
     let min = Infinity;
-    for (const s of this.samples) min = Math.min(min, s.recv - s.t);
+    const recent = recvMs - CONFIG.NET_OFFSET_WINDOW_MS;
+    for (const s of this.samples) if (s.recv >= recent) min = Math.min(min, s.recv - s.t);
     let need = 0;
     for (let i = 1; i < this.samples.length; i++) {
       const s = this.samples[i]!;
@@ -60,6 +62,15 @@ export class JitterClock {
 
   delayMs(): number {
     return this.delay;
+  }
+
+  minOffsetMs(): number {
+    return this.minOffset;
+  }
+
+  /** Server time of the snaps arriving now (lags the true server clock by the downlink latency). */
+  serverTime(nowMs: number): number {
+    return nowMs - this.minOffset;
   }
 
   /** Server time to render at, given the local clock. */
@@ -83,6 +94,8 @@ export class NetSource implements MatchSource {
   private goAt: number | null = null;
   private latest: MatchState;
   private readonly clock = new JitterClock();
+  private readonly predictor: LocalPredictor;
+  private predicted: Predicted | null = null;
 
   constructor(
     private readonly start: StartMsg,
@@ -92,6 +105,7 @@ export class NetSource implements MatchSource {
   ) {
     this.latest = createMatch(start.seed, start.setups);
     this.sender = new InputSender(send, nowMs);
+    this.predictor = new LocalPredictor(() => this.sender.history, this.clock);
     this.startRecvMs = nowMs();
     if (typeof document !== "undefined") document.addEventListener("visibilitychange", this.onVisibility);
   }
@@ -109,6 +123,7 @@ export class NetSource implements MatchSource {
   /** Call after a reconnect (server resets its processed input seq). */
   resetInput(): void {
     this.sender.reset();
+    this.predictor.reset();
   }
 
   onSnap(s: Snap, recvMs: number): void {
@@ -121,6 +136,9 @@ export class NetSource implements MatchSource {
     this.buf.push({ t, tick: s.tick, state });
     if (s.events.length > 0) this.pending.push({ t, events: s.events, state });
     if (s.phase === Phase.PLAYING) this.clock.add(recvMs, s.timeMs);
+    const me = state.players.find((p) => p.id === this.localId);
+    const predictable = CONFIG.NET_PREDICT_LOCAL && s.phase === Phase.PLAYING && me?.alive === true;
+    this.predictor.onSnap(predictable ? me : null, s.timeMs, recvMs);
     if (first) this.renderT = t - CONFIG.NET_INTERP_DELAY_MS;
     // While the tab is hidden advance() stops running: keep only ~1 s of history behind the newest snap.
     while (this.buf.length > 2 && this.buf[1]!.t < t - BUF_KEEP_MS) this.buf.shift();
@@ -144,6 +162,7 @@ export class NetSource implements MatchSource {
       this.renderT += Math.max(-lim, Math.min(lim, drift));
     }
     this.renderT = Math.min(this.renderT, newest.t); // never extrapolate
+    this.predicted = this.predictor.render(this.nowMs(), frameMs);
 
     const out: SourceEvents[] = [];
     while (this.pending.length > 0 && this.pending[0]!.t <= this.renderT) {
@@ -168,6 +187,18 @@ export class NetSource implements MatchSource {
   }
 
   frame(): { prev: MatchState; cur: MatchState; alpha: number; renderTimeMs: number } {
+    const f = this.interpolated();
+    const pr = this.predicted;
+    if (!pr) return f;
+    // Your own fighter is drawn where your inputs have taken it, not where the server was ~RTT ago.
+    const put = (s: MatchState): MatchState => ({
+      ...s,
+      players: s.players.map((p) => (p.id === this.localId && p.alive ? { ...p, ...pr } : p)),
+    });
+    return { ...f, prev: put(f.prev), cur: put(f.cur) };
+  }
+
+  private interpolated(): { prev: MatchState; cur: MatchState; alpha: number; renderTimeMs: number } {
     const b = this.buf;
     if (b.length === 0) return { prev: this.latest, cur: this.latest, alpha: 1, renderTimeMs: 0 };
     const r = this.renderT;
