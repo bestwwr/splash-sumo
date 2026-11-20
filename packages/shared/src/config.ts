@@ -173,7 +173,14 @@ const BASE = {
 
   // --- Online multiplayer (net) ---
   NET_SNAP_MS: 50,
+  /** Minimum render delay behind the server; the actual delay adapts to measured jitter (below). */
   NET_INTERP_DELAY_MS: 100,
+  /** Adaptive render delay never exceeds this (keeps remote players from feeling too far behind). */
+  NET_INTERP_MAX_DELAY_MS: 250,
+  /** How much recent snap-arrival history the adaptive delay looks at. */
+  NET_JITTER_WINDOW_MS: 3000,
+  /** Safety margin added on top of the worst recent arrival gap. */
+  NET_JITTER_MARGIN_MS: 10,
   NET_COUNTDOWN_MS: 3000,
   NET_RECONNECT_MS: 15_000,
   NET_EMPTY_ROOM_MS: 30_000,

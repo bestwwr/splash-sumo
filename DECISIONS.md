@@ -111,3 +111,9 @@ Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~40 s): 200 seeded 4-bot 
 
 ## Toolchain
 - Node 26, pnpm 12 workspaces, TypeScript 7 (`strict`, `noUncheckedIndexedAccess`), Vite 8, Vitest 5, three r187.
+
+### D-NET-JITTER: adaptive render delay for online snaps (2026-11-20)
+- **Decision:** the client renders at `localNow − fastestRecentOffset − delay`, where delay = worst (lateness + sim gap) over the last 3 s of PLAYING snaps + 10 ms, clamped to 100–250 ms. Previously render time chased "newest snap − 100 ms", which jumps every time a snap lands.
+- **Evidence:** replayed two 25 s traces recorded from the staging server on the PO's laptop connection. Render-speed wobble fell from ±11% to ±5% (sd 0.108→0.043 and 0.112→0.061). Frozen frames were already rare: 0.2–0.4% before and 0.1–0.4% after. The average delay rose by about 18 ms (157→176 ms).
+- **What this means:** uneven server updates were only a small part of the "laptop lag". The bigger part is response time: your own fighter waits a full server round trip plus the render delay, ~300 ms. Fixing that needs local prediction (next).
+- **Cost if wrong:** about 18 ms of extra delay on other players; revert by setting `NET_INTERP_MAX_DELAY_MS` to 100.

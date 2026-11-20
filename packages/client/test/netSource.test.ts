@@ -1,9 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
-  Phase, createMatch, encodeSnap,
+  CONFIG, Phase, createMatch, encodeSnap,
   type ClientMsg, type MatchState, type PlayerSetup, type SimEvent, type Snap, type StartMsg,
 } from "@lava-sumo/shared";
-import { NetSource } from "../src/net/netSource";
+import { JitterClock, NetSource } from "../src/net/netSource";
 
 const setups: PlayerSetup[] = [
   { id: "a", nickname: "A", character: "elephant", isBot: false },
@@ -24,6 +24,18 @@ function make() {
   let now = 0;
   const sent: ClientMsg[] = [];
   const src = new NetSource(start, "a", (m) => sent.push(m), () => now);
+  // In the app the receive time and the frame clock are the same clock (performance.now()):
+  // a snap arrives "now", and each frame moves the clock on by its length.
+  const onSnap = src.onSnap.bind(src);
+  const advance = src.advance.bind(src);
+  src.onSnap = (s, recvMs) => {
+    now = Math.max(now, recvMs);
+    onSnap(s, recvMs);
+  };
+  src.advance = (ms, input) => {
+    now += ms;
+    return advance(ms, input);
+  };
   return { src, sent, at: (t: number) => (now = t) };
 }
 
@@ -173,5 +185,54 @@ describe("NetSource", () => {
       src.advance(16, ZERO);
     }
     expect(sent).toHaveLength(1);
+  });
+
+  it("J1: render time follows the local clock between snaps, not the newest arrival", () => {
+    const { src } = make();
+    for (let i = 0; i <= 6; i++) src.onSnap(snapAt(i), i * 50);
+    src.advance(0, ZERO); // now 300 -> render 200
+    const r: number[] = [];
+    for (let k = 0; k < 3; k++) {
+      src.advance(16, ZERO);
+      r.push(src.frame().renderTimeMs);
+    }
+    // No new snaps for 48 ms: render time still moves at real speed instead of chasing a stale target.
+    expect(r[1]! - r[0]!).toBeCloseTo(16, 5);
+    expect(r[2]! - r[1]!).toBeCloseTo(16, 5);
+  });
+
+  it("J2: bursty arrivals (server timer stalls) grow the delay so render time never runs out", () => {
+    const { src } = make();
+    // Sim time advances evenly (50 ms), but snaps arrive in pairs every 100 ms.
+    let stalled = 0;
+    for (let i = 0; i <= 80; i++) {
+      const recv = Math.ceil(i / 2) * 100;
+      src.onSnap(snapAt(i), recv);
+      if (i % 2 === 0) {
+        for (let k = 0; k < 6; k++) {
+          src.advance(100 / 6, ZERO);
+          if (i > 20 && src.frame().alpha === 1) stalled++;
+        }
+      }
+    }
+    expect(stalled).toBe(0);
+  });
+
+  it("J3: JitterClock delay = worst recent (lateness + gap) + margin, clamped, and ignores frozen sim time", () => {
+    const c = new JitterClock();
+    expect(c.ready()).toBe(false);
+    for (let i = 0; i <= 10; i++) c.add(i * 50, i * 50); // perfectly even
+    expect(c.delayMs()).toBe(CONFIG.NET_INTERP_DELAY_MS); // 50 + margin < floor
+    c.add(700, 550); // 150 ms late after a 50 ms gap -> needs 200
+    expect(c.delayMs()).toBe(200 + CONFIG.NET_JITTER_MARGIN_MS);
+    c.add(5000, 600); // 4.4 s late: clamped
+    expect(c.delayMs()).toBe(CONFIG.NET_INTERP_MAX_DELAY_MS);
+    const d = c.delayMs();
+    c.add(5100, 600); // sim time not advancing: ignored
+    expect(c.delayMs()).toBe(d);
+    // Old samples fall out of the window; once the window is even again the delay returns to the floor.
+    for (let i = 1; i <= 80; i++) c.add(5000 + i * 50, 600 + i * 50);
+    expect(c.delayMs()).toBe(CONFIG.NET_INTERP_DELAY_MS);
+    expect(c.target(9000)).toBeCloseTo(9000 - 4400 - CONFIG.NET_INTERP_DELAY_MS, 5);
   });
 });

@@ -1,6 +1,10 @@
 /**
- * Online match source: buffers server snaps and renders ~NET_INTERP_DELAY_MS behind the newest,
- * interpolating between the two snaps that straddle render time. Owns countdown timing and input sending.
+ * Online match source: buffers server snaps and renders a little behind the server, interpolating
+ * between the two snaps that straddle render time. Owns countdown timing and input sending.
+ *
+ * Render time follows the local clock mapped onto server time (not the newest snap's arrival), and the
+ * delay behind the server adapts to how unevenly snaps have arrived over the last few seconds, so a
+ * late or bursty snap doesn't freeze the picture. See JitterClock.
  */
 import {
   CONFIG,
@@ -19,6 +23,51 @@ import { InputSender } from "./inputSender";
 
 const BUF_KEEP_MS = 1000;
 
+/**
+ * Maps local time onto server match time from PLAYING snap arrivals.
+ * offset = recvMs - timeMs; the smallest recent offset is the least-delayed arrival. Rendering at
+ * `now - minOffset - delay` stays behind the newest snap as long as delay covers, for every recent
+ * snap k, its extra lateness plus the sim-time gap since snap k-1 (the moment just before k arrives).
+ */
+export class JitterClock {
+  private samples: Array<{ recv: number; t: number }> = [];
+  private minOffset = 0;
+  private delay: number = CONFIG.NET_INTERP_DELAY_MS;
+
+  add(recvMs: number, t: number): void {
+    const last = this.samples[this.samples.length - 1];
+    if (last && t <= last.t) return; // sim time not advancing (countdown/results/duplicate)
+    this.samples.push({ recv: recvMs, t });
+    const cut = recvMs - CONFIG.NET_JITTER_WINDOW_MS;
+    while (this.samples.length > 2 && this.samples[0]!.recv < cut) this.samples.shift();
+    let min = Infinity;
+    for (const s of this.samples) min = Math.min(min, s.recv - s.t);
+    let need = 0;
+    for (let i = 1; i < this.samples.length; i++) {
+      const s = this.samples[i]!;
+      need = Math.max(need, s.recv - min - this.samples[i - 1]!.t);
+    }
+    this.minOffset = min;
+    this.delay = Math.max(
+      CONFIG.NET_INTERP_DELAY_MS,
+      Math.min(CONFIG.NET_INTERP_MAX_DELAY_MS, need + CONFIG.NET_JITTER_MARGIN_MS),
+    );
+  }
+
+  ready(): boolean {
+    return this.samples.length > 0;
+  }
+
+  delayMs(): number {
+    return this.delay;
+  }
+
+  /** Server time to render at, given the local clock. */
+  target(nowMs: number): number {
+    return nowMs - this.minOffset - this.delay;
+  }
+}
+
 interface Entry {
   t: number; // server match time
   tick: number;
@@ -33,6 +82,7 @@ export class NetSource implements MatchSource {
   private renderT = 0;
   private goAt: number | null = null;
   private latest: MatchState;
+  private readonly clock = new JitterClock();
 
   constructor(
     private readonly start: StartMsg,
@@ -61,7 +111,7 @@ export class NetSource implements MatchSource {
     this.sender.reset();
   }
 
-  onSnap(s: Snap, _recvMs: number): void {
+  onSnap(s: Snap, recvMs: number): void {
     const newest = this.buf[this.buf.length - 1];
     if (newest && s.tick < newest.tick) return; // out of order
     const state = applySnap(this.latest, s);
@@ -70,6 +120,7 @@ export class NetSource implements MatchSource {
     const first = this.buf.length === 0;
     this.buf.push({ t, tick: s.tick, state });
     if (s.events.length > 0) this.pending.push({ t, events: s.events, state });
+    if (s.phase === Phase.PLAYING) this.clock.add(recvMs, s.timeMs);
     if (first) this.renderT = t - CONFIG.NET_INTERP_DELAY_MS;
     // While the tab is hidden advance() stops running: keep only ~1 s of history behind the newest snap.
     while (this.buf.length > 2 && this.buf[1]!.t < t - BUF_KEEP_MS) this.buf.shift();
@@ -80,7 +131,8 @@ export class NetSource implements MatchSource {
     this.sender.update(input, this.activePhase());
     const newest = this.buf[this.buf.length - 1];
     if (!newest) return [];
-    const target = newest.t - CONFIG.NET_INTERP_DELAY_MS;
+    // Before PLAYING (countdown) sim time stands still, so fall back to "a fixed delay behind the newest".
+    const target = this.clock.ready() ? this.clock.target(this.nowMs()) : newest.t - CONFIG.NET_INTERP_DELAY_MS;
     this.renderT += frameMs;
     const drift = target - this.renderT;
     if (Math.abs(drift) > CONFIG.NET_HARD_RESYNC_MS) {
