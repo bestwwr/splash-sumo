@@ -1,6 +1,7 @@
 import type { CharacterId, SkillId } from "@lava-sumo/shared";
 import elephantArt from "../assets/fighters/elephant.jpg";
 import monkeyArt from "../assets/fighters/monkey.jpg";
+import turtleArt from "../assets/fighters/turtle.jpg";
 
 export interface CatalogItem {
   id: string;
@@ -15,7 +16,7 @@ export interface CatalogItem {
 export const CATALOG: readonly CatalogItem[] = [
   { id: "fighter.elephant", kind: "fighter", name: "Magma Tank", role: "Tank", fighterId: "elephant", order: 0, defaultOwned: true },
   { id: "fighter.monkey", kind: "fighter", name: "Ember Dash", role: "Speedster", fighterId: "monkey", order: 1, defaultOwned: true },
-  { id: "fighter.turtle", kind: "fighter", name: "Turtle", role: "Anchor", fighterId: "turtle", order: 2, defaultOwned: true },
+  { id: "fighter.turtle", kind: "fighter", name: "Iron Gramp", role: "Anchor", fighterId: "turtle", order: 2, defaultOwned: true },
 ];
 
 export const SKILL_INFO: Record<SkillId, { name: string; blurb: string }> = {
@@ -56,7 +57,7 @@ export function arenasForPicker(minCells = 3): Array<ArenaInfo | null> {
 export const FIGHTER_EMOJI: Record<CharacterId, string> = { elephant: "🐘", monkey: "🐒", turtle: "🐢" };
 
 /** Portrait art per fighter (square). Fighters without art fall back to their emoji. */
-export const FIGHTER_ART: Partial<Record<CharacterId, string>> = { elephant: elephantArt, monkey: monkeyArt };
+export const FIGHTER_ART: Partial<Record<CharacterId, string>> = { elephant: elephantArt, monkey: monkeyArt, turtle: turtleArt };
 
 /**
  * The fighter's picture for a card: its portrait if it has one, else the emoji.
