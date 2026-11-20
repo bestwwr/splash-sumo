@@ -18,7 +18,7 @@ Up to 4 players stand on basalt tiles over a lava lake. The floor cracks and mel
 |---|---|---|
 | 1 · Core loop (local) | Shared deterministic sim, hex arena, collapse, shove, elimination, joystick + keyboard, 3 dummies | ✅ Live |
 | 2 · Online | Cloudflare Workers + Durable Objects, private rooms, server snapshots + interpolation, reconnection | 🧪 In the test environment, phone playtest underway |
-| 3 · Characters & bots | Elephant / Monkey / Turtle skills, ember spirits, eruption, bot difficulties, solo Quick Play screens | ✅ Live (solo Quick Play) |
+| 3 · Characters & bots | Magma Tank / Ember Dash / Iron Gramp (elephant, monkey, turtle) with portrait art and skills, ember spirits, eruption, bot difficulties, solo Quick Play screens | ✅ Live (solo Quick Play) |
 | 4 · Polish & launch | Art, audio, PWA, analytics, itch.io | ⏳ |
 
 ## Play with friends

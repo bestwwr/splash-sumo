@@ -54,9 +54,13 @@ Open link → pick a fighter → 90-second match → results → **Play again**.
 
 ### Three fighters, one button each
 Each fighter has one skill on one button, so it's easy to learn and still has tactics:
-- **Elephant** (tank): *Ground Slam* knocks everyone nearby away.
-- **Monkey** (speedster): *Dash* is a quick lunge to shove someone off.
-- **Turtle** (anchor): *Shell* makes it immovable for 1.5 s, and attackers bounce off.
+
+| ![Magma Tank](img/fighter-elephant.jpg) | ![Ember Dash](img/fighter-monkey.jpg) | ![Iron Gramp](img/fighter-turtle.jpg) |
+|:---:|:---:|:---:|
+| **Magma Tank** (elephant, tank) | **Ember Dash** (monkey, speedster) | **Iron Gramp** (turtle, anchor) |
+| *Ground Slam* knocks everyone nearby away | *Dash* is a quick lunge to shove someone off | *Shell* makes it immovable for 1.5 s, and attackers bounce off |
+
+The fighters started as placeholder emoji (🐘 🐒 🐢) so the gameplay could be tested first. Once the roles felt right, I gave each one a name and a portrait that says its role at a glance: a heavy stomper, a grinning daredevil, and a tough old grandpa who doesn't budge. Each portrait is compressed to about 25 KB, so the art adds almost nothing to the download on mobile data.
 
 | Inventory | Quick Play setup |
 |---|---|
@@ -134,18 +138,18 @@ Before shipping bot difficulties I had the computer play **200 matches per pairi
 Tried and dropped, because the data said so: two "smarter" bot behaviors made Hard bots *more passive* and **lowered** their win rate.
 
 ### Fighter balance: measured, shipped, then fixed from playtest
-The simulation flagged that **Monkey won 68% of Hard-bot matches** (fair would be ~33%). I **chose to ship anyway** and let real players confirm it. Every tuning option that fixed it changed a core feel decision, and I didn't want to tune for bots instead of people.
+The simulation flagged that **Ember Dash (the monkey) won 68% of Hard-bot matches** (fair would be ~33%). I **chose to ship anyway** and let real players confirm it. Every tuning option that fixed it changed a core feel decision, and I didn't want to tune for bots instead of people.
 
-The first playtest confirmed it ("Monkey's skill is too good"), so I compared three fixes in simulation:
+The first playtest confirmed it ("Monkey's skill is too good", from before the fighters had names), so I compared three fixes in simulation:
 
-| Option | Monkey win share (600 matches, Hard bots) |
+| Option | Ember Dash win share (600 matches, Hard bots) |
 |---|---|
 | Original (6 s cooldown) | 68.0% |
 | 8 s cooldown | 64.1% |
 | 8 s cooldown + shorter dash | 63.0% |
 | **10 s cooldown (shipped to test)** | **57.6%** |
 
-The data also showed one-on-one Monkey still wins about 98%, so the next lever, if needed, is the dash's knockback and not the cooldown.
+The data also showed one-on-one Ember Dash still wins about 98%, so the next lever, if needed, is the dash's knockback and not the cooldown.
 
 ---
 
@@ -178,7 +182,7 @@ The lag report is the trigger I'd set in advance for building prediction: I defe
 | Now | Next | Later |
 |---|---|---|
 | Fix online lag (smooth updates, then instant local movement) | Phone playtest with 3–4 friends on cellular → release multiplayer to the live site | Analytics (rematch rate, matches per session) to measure against the traction gate |
-| Re-check Monkey balance with real players | Art pass for fighters (3D characters) | More arenas (the map picker already has slots), skins |
+| Re-check Ember Dash balance with real players | 3D fighter models that match the new portraits | More arenas (the map picker already has slots), skins |
 
 ---
 
