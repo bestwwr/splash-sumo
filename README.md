@@ -10,14 +10,14 @@ Up to 4 players stand on basalt tiles over a lava lake. The floor cracks and mel
 
 ## Play it here
 
-[**Play Lava Sumo**](https://bestwwr.github.io/splash-sumo/): solo vs bots is live; online multiplayer is in testing.
+[**Play Lava Sumo**](https://bestwwr.github.io/splash-sumo/): solo vs bots and online play with friends are both live.
 
 ## Status
 
 | Milestone | Scope | Status |
 |---|---|---|
 | 1 · Core loop (local) | Shared deterministic sim, hex arena, collapse, shove, elimination, joystick + keyboard, 3 dummies | ✅ Live |
-| 2 · Online | Cloudflare Workers + Durable Objects, private rooms, server snapshots + interpolation, reconnection | 🧪 In the test environment, phone playtest underway |
+| 2 · Online | Cloudflare Workers + Durable Objects, private rooms, server snapshots + interpolation, local-player prediction, reconnection | ✅ Live |
 | 3 · Characters & bots | Magma Tank / Ember Dash / Iron Gramp (elephant, monkey, turtle) with portrait art and skills, ember spirits, eruption, bot difficulties, solo Quick Play screens | ✅ Live (solo Quick Play) |
 | 4 · Polish & launch | Art, audio, PWA, analytics, itch.io | ⏳ |
 
