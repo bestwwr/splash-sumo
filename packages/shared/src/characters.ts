@@ -13,7 +13,7 @@ export interface CharacterStats {
 
 export const CHARACTERS: Record<CharacterId, { name: string; stats: CharacterStats }> = {
   elephant: { name: "Magma Tank", stats: { power: 5, agility: 2, endurance: 3 } },
-  monkey: { name: "Monkey", stats: { power: 2, agility: 5, endurance: 3 } },
+  monkey: { name: "Ember Dash", stats: { power: 2, agility: 5, endurance: 3 } },
   turtle: { name: "Turtle", stats: { power: 3, agility: 2, endurance: 5 } },
 };
 
