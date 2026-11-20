@@ -86,6 +86,7 @@ Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~40 s): 200 seeded 4-bot 
 - **Measured (600 matches, 4 Hard bots):** Elephant 13.7%, Monkey 68.0%, Turtle 18.4% of wins. Design target is 30–36% each.
 - **Why not tuned now:** every config that hits the target either changes spec-fixed values (dash ×1.5, shell reflects at full force) or makes slam/shell very swingy.
 - **Decision (PO, 2026-11-19):** keep the current spec values for the first playtest. `test/sim/balance.sim.test.ts` prints shares instead of asserting the target. Revisit with playtest feedback; the leading candidate is a Monkey nerf (dash cooldown 6→8 s or distance 4→3.5 m).
+- **Update (PO playtest, 2026-11-19):** PO found Monkey too strong and asked for a longer cooldown. Dash cooldown 6 → **10 s**. Sim, 4 Hard bots (600 matches): Monkey 68.0% → 57.6% (8 s gave 64.1%; 8 s + 3.5 m dash gave 63.0%). The 1-v-1 Hard triangle is unchanged (Monkey still beats Elephant and Turtle ~98%), so the next lever, if needed, is the dash knockback (`DASH_KNOCK_MULT`) or the Hard bot's dash aim.
 
 ### D-SQP-3 · Arenas: volcano first, data-driven
 - **Decision (PO, 2026-11-19):** ship only the volcano (lava) arena now. The map picker shows other arenas as "coming soon" slots. Arenas are defined as data so new ones can be added later without touching the screens.

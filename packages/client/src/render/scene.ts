@@ -28,17 +28,24 @@ const SHOWCASE_PITCH = THREE.MathUtils.degToRad(24);
 const SHOWCASE_YAW = 0.5; // 3/4 view
 const SHOWCASE_SHIFT = 0.15;
 const CAMERA_PITCH = THREE.MathUtils.degToRad(58); // elevation angle above the floor
+/** Fog band for the standard landscape camera, and that camera's distance (m). */
+const FOG_NEAR = 22;
+const FOG_FAR = 45;
+const LANDSCAPE_DIST = 18;
 
 export function createScene(canvas: HTMLCanvasElement, tileCount: number): GameScene {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: "high-performance" });
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2)); // DPR cap (§3.5)
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = 1.1;
+  // Phone screens read darker (smaller, often dimmed, viewed in daylight): brighten touch devices a little.
+  const touch = typeof matchMedia === "function" && matchMedia("(pointer: coarse)").matches;
+  renderer.toneMappingExposure = touch ? 1.35 : 1.1;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color("#1a0d0a");
-  scene.fog = new THREE.Fog("#1a0d0a", 22, 45);
+  const fog = new THREE.Fog("#1a0d0a", FOG_NEAR, FOG_FAR);
+  scene.fog = fog;
 
   // Camera sits on +z looking at the origin: screen-right = +x, screen-up = −z.
   const camera = new THREE.PerspectiveCamera(38, 1, 0.1, 100);
@@ -75,6 +82,10 @@ export function createScene(canvas: HTMLCanvasElement, tileCount: number): GameS
     const distV = (FIT_RADIUS * Math.sin(CAMERA_PITCH) + 0.5) / Math.tan(vFov / 2);
     const distH = FIT_RADIUS / Math.tan(hFov / 2);
     const dist = Math.max(distV, distH);
+    // Fog is tuned for the landscape camera (~18 m back: 22–45 m). Keep the same margins when a narrow
+    // (portrait) screen pushes the camera further out, or the whole arena sinks into the fog.
+    fog.near = Math.max(FOG_NEAR, dist + FOG_NEAR - LANDSCAPE_DIST);
+    fog.far = Math.max(FOG_FAR, dist + FOG_FAR - LANDSCAPE_DIST);
     if (showcase) base.set(0, Math.sin(SHOWCASE_PITCH) * SHOWCASE_DIST, Math.cos(SHOWCASE_PITCH) * SHOWCASE_DIST);
     else base.set(0, Math.sin(CAMERA_PITCH) * dist, Math.cos(CAMERA_PITCH) * dist);
     camera.position.copy(base);
