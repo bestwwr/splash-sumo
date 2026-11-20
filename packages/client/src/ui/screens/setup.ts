@@ -1,5 +1,5 @@
 import { SKILL_OF, type BotDifficulty, type CharacterId } from "@lava-sumo/shared";
-import { arenasForPicker, FIGHTER_EMOJI, SKILL_INFO } from "../../meta/catalog";
+import { arenasForPicker, SKILL_INFO, fighterFaceHtml } from "../../meta/catalog";
 import { fightersForGrid, type Profile } from "../../meta/profile";
 
 export interface SetupDeps {
@@ -78,7 +78,7 @@ export function createSetupScreen(root: HTMLElement, deps: SetupDeps): SetupScre
       b.dataset.fighter = c.fighterId;
       b.classList.toggle("selected", sel);
       b.setAttribute("aria-pressed", String(sel));
-      b.innerHTML = `<span class="setup-face">${FIGHTER_EMOJI[c.fighterId]}</span>
+      b.innerHTML = `${fighterFaceHtml(c.fighterId, "setup-face")}
         <span class="setup-info"><span class="setup-name">${c.name}</span><span class="setup-sub">${c.role ?? ""} · ${
           SKILL_INFO[SKILL_OF[c.fighterId]].name
         }</span></span>${sel ? '<span class="setup-check" aria-hidden="true">✓</span>' : ""}`;

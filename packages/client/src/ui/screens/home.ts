@@ -16,6 +16,7 @@ export interface HomeDeps {
   setProfile(p: Profile): void;
   onQuickPlay(): void;
   onInventory(): void;
+  onFriends(): void;
 }
 
 export function createHomeScreen(root: HTMLElement, deps: HomeDeps): HomeScreen {
@@ -31,7 +32,7 @@ export function createHomeScreen(root: HTMLElement, deps: HomeDeps): HomeScreen 
     <div class="home-menu">
       <button class="btn primary quick" type="button">⚡ Quick Play</button>
       <button class="btn ghost inv" type="button">🎒 Inventory</button>
-      <button class="btn soon" type="button" disabled>👥 Play with friends · coming soon</button>
+      <button class="btn ghost friends" type="button">👥 Play with friends</button>
     </div>`;
   root.appendChild(el);
 
@@ -94,6 +95,7 @@ export function createHomeScreen(root: HTMLElement, deps: HomeDeps): HomeScreen 
   });
   q<HTMLButtonElement>(".change-chip").addEventListener("click", () => deps.onInventory());
   q<HTMLButtonElement>(".inv").addEventListener("click", () => deps.onInventory());
+  q<HTMLButtonElement>(".friends").addEventListener("click", () => deps.onFriends());
   q<HTMLButtonElement>(".quick").addEventListener("click", () => deps.onQuickPlay());
 
   return {

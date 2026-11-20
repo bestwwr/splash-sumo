@@ -111,3 +111,22 @@ Difficulty sim (`pnpm --filter @lava-sumo/shared sim`, ~40 s): 200 seeded 4-bot 
 
 ## Toolchain
 - Node 26, pnpm 12 workspaces, TypeScript 7 (`strict`, `noUncheckedIndexedAccess`), Vite 8, Vitest 5, three r187.
+
+### D-NET-JITTER: adaptive render delay for online snaps (2026-11-20)
+- **Decision:** the client renders at `localNow − fastestRecentOffset − delay`, where delay = worst (lateness + sim gap) over the last 3 s of PLAYING snaps + 10 ms, clamped to 100–250 ms. Previously render time chased "newest snap − 100 ms", which jumps every time a snap lands.
+- **Evidence:** replayed two 25 s traces recorded from the staging server on the PO's laptop connection. Render-speed wobble fell from ±11% to ±5% (sd 0.108→0.043 and 0.112→0.061). Frozen frames were already rare: 0.2–0.4% before and 0.1–0.4% after. The average delay rose by about 18 ms (157→176 ms).
+- **What this means:** uneven server updates were only a small part of the "laptop lag". The bigger part is response time: your own fighter waits a full server round trip plus the render delay, ~300 ms. Fixing that needs local prediction (next).
+- **Cost if wrong:** about 18 ms of extra delay on other players; revert by setting `NET_INTERP_MAX_DELAY_MS` to 100.
+
+### D-NET-PREDICT: your own fighter moves instantly online (2026-11-20)
+- **Decision:** the client draws the local player by replaying its own sent inputs (movement only, the shared `applyMovement`) on top of the newest server state, up to "now + RTT" in server time. Everything else stays server-snapshot interpolation. Collisions, skill starts, tiles and eliminations are not predicted; they arrive with the next snap. Corrections ease out over 120 ms, and jumps over 2 m snap. `NET_PREDICT_LOCAL: false` turns it off.
+- **Found while building:** after a timer stall the server dropped up to ~50 ms of match time (catch-up capped at 3 ticks), so match time drifted behind real time and predictions were off by ~0.4 m. Fixes: the online server now catches up to 8 ticks (`NET_SERVER_MAX_CATCHUP_STEPS`; solo stays at 3), and the client's server-clock estimate uses only the last 1 s of arrivals (`NET_OFFSET_WINDOW_MS`).
+- **Evidence:** a simulation running the real server room logic, client code and delayed messages, with 5% timer stalls, a human plus bots, and 6 seeds:
+
+  | One-way delay | Press → own fighter moves: off | on | Jumpy frames (on) |
+  |---|---|---|---|
+  | 60 ± 20 ms | 320 ms | **67 ms** | 2 / 1713 |
+  | 100 ± 40 ms | 431 ms | **52 ms** | 31 / 1976 |
+
+  Median prediction error vs the server: 0.08 m with stalls (0.02 m without).
+- **Cost if wrong:** brief rubber-banding when you're shoved or walk into someone, since those come from the server about one round trip later. Turn it off with the flag.

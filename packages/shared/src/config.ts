@@ -7,6 +7,9 @@ const BASE = {
   TICK_HZ: 30,
   TICK_MS: 1000 / 30,
   MAX_CATCHUP_STEPS: 3,
+  /** The online server catches up further after a timer stall (Durable Object stalls of ~140 ms were measured),
+   *  so match time doesn't fall behind real time; client prediction relies on that (D-NET-PREDICT). */
+  NET_SERVER_MAX_CATCHUP_STEPS: 8,
 
   // --- Arena (A.2) ---
   ARENA_RADIUS: 5, // rings → 91 tiles
@@ -62,7 +65,7 @@ const BASE = {
   SLAM_KNOCK_SPEED: 4.5,
   DASH_DISTANCE: 4,
   DASH_DURATION_MS: 250,
-  DASH_COOLDOWN_MS: 6000,
+  DASH_COOLDOWN_MS: 10_000,
   DASH_KNOCK_MULT: 1.5,
   SHELL_DURATION_MS: 1500,
   SHELL_COOLDOWN_MS: 10_000,
@@ -170,6 +173,50 @@ const BASE = {
       threat: 4, threatLead: 1, wander: 0, inertia: 0.25, skillSmart: 2, speed: 1,
     },
   },
+
+  // --- Online multiplayer (net) ---
+  NET_SNAP_MS: 50,
+  /** Minimum render delay behind the server; the actual delay adapts to measured jitter (below). */
+  NET_INTERP_DELAY_MS: 100,
+  /** Adaptive render delay never exceeds this (keeps remote players from feeling too far behind). */
+  NET_INTERP_MAX_DELAY_MS: 250,
+  /** How much recent snap-arrival history the adaptive delay looks at. */
+  NET_JITTER_WINDOW_MS: 3000,
+  /** The server-clock estimate uses the fastest arrival of only this recent history, so it follows drift. */
+  NET_OFFSET_WINDOW_MS: 1000,
+  /** Safety margin added on top of the worst recent arrival gap. */
+  NET_JITTER_MARGIN_MS: 10,
+  /** Draw your own fighter from local inputs instead of waiting a server round trip (D-NET-PREDICT). */
+  NET_PREDICT_LOCAL: true,
+  /** Round-trip guess until the first input is acknowledged. */
+  NET_RTT_INIT_MS: 150,
+  /** When the server corrects your predicted position, ease the difference out over about this long. */
+  NET_PREDICT_SMOOTH_MS: 120,
+  /** Corrections bigger than this (a big shove, a respawn) jump instead of sliding. */
+  NET_PREDICT_SNAP_M: 2,
+  NET_COUNTDOWN_MS: 3000,
+  NET_RECONNECT_MS: 15_000,
+  NET_EMPTY_ROOM_MS: 30_000,
+  NET_MAX_HUMANS: 4,
+  NET_INPUT_MAX_PER_SEC: 15,
+  NET_INPUT_KEEPALIVE_MS: 1000,
+  NET_ABUSE_KICK_MS: 5000,
+  NET_RESYNC_FRAC: 0.1,
+  NET_HARD_RESYNC_MS: 250,
+  NET_INPUT_MAX_QUEUE: 4,
+  /** Server-side per-connection message limit (looser than the client's NET_INPUT_MAX_PER_SEC to absorb jitter). */
+  NET_SERVER_MSG_MAX_PER_SEC: 30,
+  /** A connected player silent this long during a match gets zero input until they speak again. */
+  NET_SILENT_INPUT_MS: 2500,
+  /** LOBBY/RESULTS rooms with no member message for this long are retired. */
+  NET_IDLE_ROOM_MS: 600_000,
+  NET_HTTP_TIMEOUT_MS: 8000,
+  NET_CONNECT_TIMEOUT_MS: 8000,
+  // --- Client match presentation ---
+  GO_DISPLAY_MS: 600,
+  SOLO_COUNTDOWN_MS: 3000,
+  // Pause after the match ends before the results screen, so the last fall plays out.
+  RESULTS_DELAY_MS: 1100,
 } as const;
 
 /**

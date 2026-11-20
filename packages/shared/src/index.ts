@@ -12,3 +12,6 @@ export * from "./simulation";
 export { scoreDirection, type BotWeights } from "./bots/scoring";
 export * from "./bots/bot";
 export * from "./bots/names";
+export * from "./nickname";
+export * from "./protocol";
+export * from "./snapshot";
