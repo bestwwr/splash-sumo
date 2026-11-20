@@ -3,7 +3,7 @@
 **Sumo in a volcano.** 90-second matches, one thumb, send a link and play.
 Up to 4 players stand on basalt tiles over a lava lake. The floor cracks and melts tile by tile, and you shove each other in. Last one standing wins.
 
-> Portfolio project: a Product Owner shipping a real-time multiplayer browser game with AI coding agents.
+> Portfolio project by **Weerawish (Ben)**: a Product Owner shipping a real-time multiplayer browser game with AI coding agents.
 > **📄 Read the [product case study](docs/portfolio/CASE-STUDY.md)**: the problem, key decisions, data and playtests. Full spec: [`SPEC.md`](SPEC.md) · build decisions: [`DECISIONS.md`](DECISIONS.md).
 
 ![A Lava Sumo match](docs/portfolio/img/05-match.jpg)

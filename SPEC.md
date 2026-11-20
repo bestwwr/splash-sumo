@@ -1,7 +1,7 @@
 # Lava Sumo — System Design Spec (MVP / Phase B)
 
 > Paste into the repo root as `SPEC.md` and point Claude Code at it.
-> Owner: Ben (Product Owner) · Builder: Claude Code in Cursor · Status: decisions **locked** unless marked *Open*.
+> Owner: Weerawish (Ben), Product Owner · Builder: Claude Code in Cursor · Status: decisions **locked** unless marked *Open*.
 
 **Document map**
 0. Instructions for Claude Code

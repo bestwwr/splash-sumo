@@ -2,6 +2,8 @@
 
 **A Product Owner shipping a real-time multiplayer browser game with AI coding agents.**
 
+*By Weerawish (Ben), Product Owner.*
+
 [▶ Play it](https://bestwwr.github.io/splash-sumo/) · [Product spec](../../SPEC.md) · [Decision log](../../DECISIONS.md) · [Source](../../packages)
 
 ![A live match: four fighters on a hex floor over a lava lake](img/05-match.jpg)
