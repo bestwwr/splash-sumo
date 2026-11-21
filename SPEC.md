@@ -1,4 +1,4 @@
-# Lava Sumo — System Design Spec (MVP / Phase B)
+# Splash Sumo — System Design Spec (MVP / Phase B)
 
 > Paste into the repo root as `SPEC.md` and point Claude Code at it.
 > Owner: Weerawish (Ben), Product Owner · Builder: Claude Code in Cursor · Status: decisions **locked** unless marked *Open*.
@@ -32,7 +32,7 @@
 ## 1. Requirements
 
 ### 1.1 Product context
-**Lava Sumo** is a mobile-first, browser-based, online **party battle royale**. Up to 4 players stand on basalt rock tiles inside a volcano crater; the floor cracks and melts into the lava tile by tile. Players **shove each other into the lava** by running into them. **Last one standing wins.**
+**Splash Sumo** is a mobile-first, browser-based, online **party battle royale**. Up to 4 players stand on basalt rock tiles inside a volcano crater; the floor cracks and melts into the lava tile by tile. Players **shove each other into the lava** by running into them. **Last one standing wins.**
 Universal theme (no country-specific references) so international players get it instantly.
 
 Pitch: *"Sumo in a volcano — 90-second matches, one thumb, send a link and play."*
@@ -468,7 +468,7 @@ Look: chubby low-poly animals wearing sumo belts; player-slot color on belt/outl
 
 ### A.9 Repo layout
 ```
-lava-sumo/
+splash-sumo/
 ├─ packages/
 │  ├─ shared/src/   config.ts hex.ts physics.ts collapse.ts characters.ts skills.ts simulation.ts rng.ts
 │  ├─ server/src/   index.ts rooms/MatchRoom.ts bots/ http/

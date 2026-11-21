@@ -1,5 +1,5 @@
 /** Edge entry: HTTP room API + CORS, forwarding WebSocket upgrades to the per-room MatchRoom DO. */
-import { PROTOCOL_VERSION, generateRoomCode, normalizeRoomCode } from "@lava-sumo/shared";
+import { PROTOCOL_VERSION, generateRoomCode, normalizeRoomCode } from "@splash-sumo/shared";
 import type { MatchRoom } from "./matchRoom";
 
 export { MatchRoom } from "./matchRoom";

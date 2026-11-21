@@ -3,7 +3,7 @@
  * Free of networking and sim timing; sources own both.
  */
 import * as THREE from "three";
-import { CONFIG, Phase, SKILL_OF, SkillPhase, cooldownOf, hexKey, worldToHex, type MatchResult, type MatchState, type SimEvent } from "@lava-sumo/shared";
+import { CONFIG, Phase, SKILL_OF, SkillPhase, cooldownOf, hexKey, worldToHex, type MatchResult, type MatchState, type SimEvent } from "@splash-sumo/shared";
 import type { GameScene } from "../render/scene";
 import { createPlayers, type PlayersView } from "../render/players";
 import type { Controls } from "../input/input";

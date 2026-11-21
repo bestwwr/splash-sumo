@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CONFIG, Phase, createMatch, encodeSnap, maxSpeed,
   type ClientMsg, type MatchState, type Player, type PlayerSetup, type StartMsg,
-} from "@lava-sumo/shared";
+} from "@splash-sumo/shared";
 import { LocalPredictor, type SentInput } from "../src/net/prediction";
 import { NetSource } from "../src/net/netSource";
 

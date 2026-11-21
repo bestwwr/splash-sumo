@@ -1,4 +1,4 @@
-import { normalizeRoomCode } from "@lava-sumo/shared";
+import { normalizeRoomCode } from "@splash-sumo/shared";
 
 export interface FriendsDeps {
   onCreate(): void;

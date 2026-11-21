@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CONFIG } from "@lava-sumo/shared";
+import { CONFIG } from "@splash-sumo/shared";
 import { checkRoom, connectRoom, createRoom, playerToken, serverUrl } from "../src/net/roomClient";
 
 class FakeWS {
@@ -100,9 +100,9 @@ describe("checkRoom / createRoom", () => {
 describe("playerToken", () => {
   it("reuses anonId and persists", () => {
     localStorage.clear();
-    localStorage.setItem("lavasumo.anonId", "anon-1");
+    localStorage.setItem("splashsumo.anonId", "anon-1");
     expect(playerToken()).toBe("anon-1");
-    expect(localStorage.getItem("lavasumo.playerToken")).toBe("anon-1");
+    expect(localStorage.getItem("splashsumo.playerToken")).toBe("anon-1");
   });
 });
 

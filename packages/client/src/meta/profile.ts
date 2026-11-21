@@ -1,4 +1,4 @@
-import { CHARACTER_IDS, sanitizeNickname as sanitizeNicknameShared, type BotDifficulty, type CharacterId } from "@lava-sumo/shared";
+import { CHARACTER_IDS, sanitizeNickname as sanitizeNicknameShared, type BotDifficulty, type CharacterId } from "@splash-sumo/shared";
 import { ARENAS, CATALOG, DEFAULT_ARENA, type CatalogItem } from "./catalog";
 
 export interface KeyValueStorage {
@@ -16,8 +16,8 @@ export interface Profile {
   equippedSkins: Partial<Record<CharacterId, string>>;
 }
 
-const PROFILE_KEY = "lavasumo.profile.v1";
-const LEGACY_NICK_KEY = "lavasumo.nickname";
+const PROFILE_KEY = "splashsumo.profile.v1";
+const LEGACY_NICK_KEY = "splashsumo.nickname";
 const DIFFICULTIES: readonly BotDifficulty[] = ["easy", "medium", "hard"];
 
 export function sanitizeNickname(raw: string, randomNick: () => string = defaultRandomNick): string {

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { Phase, type ClientMsg, type ServerMsg, type StartMsg } from "@lava-sumo/shared";
+import { Phase, type ClientMsg, type ServerMsg, type StartMsg } from "@splash-sumo/shared";
 import { createOnlineFlow } from "../src/game/onlinePlay";
 import { loadProfile } from "../src/meta/profile";
 import type { RoomHandlers } from "../src/net/roomClient";

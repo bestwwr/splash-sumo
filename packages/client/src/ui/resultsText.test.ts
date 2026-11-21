@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { EliminationCause } from "@lava-sumo/shared";
+import { EliminationCause } from "@splash-sumo/shared";
 import { causeText, resultsSubtitle } from "./resultsText";
 
 describe("resultsText", () => {

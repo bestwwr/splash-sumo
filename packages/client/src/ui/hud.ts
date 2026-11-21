@@ -1,4 +1,4 @@
-import { CONFIG, type MatchResult, type Player } from "@lava-sumo/shared";
+import { CONFIG, type MatchResult, type Player } from "@splash-sumo/shared";
 import { causeText } from "./resultsText";
 import { SLOT_COLORS } from "../render/players";
 

@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, describe, expect, it } from "vitest";
-import { Phase, createMatch, encodeSnap, type ClientMsg, type PlayerSetup, type StartMsg } from "@lava-sumo/shared";
+import { Phase, createMatch, encodeSnap, type ClientMsg, type PlayerSetup, type StartMsg } from "@splash-sumo/shared";
 import { NetSource } from "../src/net/netSource";
 
 const setups: PlayerSetup[] = [{ id: "a", nickname: "A", character: "elephant", isBot: false }];

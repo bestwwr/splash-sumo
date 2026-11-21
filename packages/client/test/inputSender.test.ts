@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ClientMsg } from "@lava-sumo/shared";
-import { CONFIG } from "@lava-sumo/shared";
+import type { ClientMsg } from "@splash-sumo/shared";
+import { CONFIG } from "@splash-sumo/shared";
 import { RoomLogic } from "../../server/src/room";
 import { InputSender } from "../src/net/inputSender";
 

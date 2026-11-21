@@ -1,6 +1,6 @@
 /** Durable Object adapter: sockets, storage flag and timers around the pure RoomLogic. No game rules here. */
 import { DurableObject } from "cloudflare:workers";
-import { CONFIG, PROTOCOL_VERSION, type ErrorCode, type ServerMsg } from "@lava-sumo/shared";
+import { CONFIG, PROTOCOL_VERSION, type ErrorCode, type ServerMsg } from "@splash-sumo/shared";
 import { RoomLogic, type Outgoing } from "./room";
 
 const FLAG_KEY = "room";

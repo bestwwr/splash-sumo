@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Up to 4 friends play one server-authoritative Lava Sumo match from their own phones via a room code, hosted free on Cloudflare Workers + Durable Objects.
+**Goal:** Up to 4 friends play one server-authoritative Splash Sumo match from their own phones via a room code, hosted free on Cloudflare Workers + Durable Objects.
 
 **Architecture:** A Worker routes `/rooms` and forwards WebSockets to one `MatchRoom` Durable Object per room code. The DO is a thin adapter around a pure `RoomLogic` class that runs the existing shared `step()` at 30 Hz and emits compact snapshots at 20 Hz. The client's match loop is split into a match *view* fed by a `LocalSource` (solo, unchanged) or a `NetSource` (snapshot interpolation ~100 ms behind).
 
@@ -24,7 +24,7 @@
 - Links: `?room=ABCD` (no path routes; GitHub Pages).
 - Solo Quick Play keeps working with no server, and its existing tests stay green.
 - **Ruling:** skins are still "soon" in the client (no skin data exists), so the protocol carries no skin field; the spec's skin validation is deferred until skins exist.
-- Two environments (spec §5.4): **staging** = Worker `lava-sumo-staging` serving the staging client build (static assets) + game server, same origin, **TEST** badge; **prod** = Worker `lava-sumo` + GitHub Pages client. Build env vars: `VITE_APP_ENV` (`dev`|`staging`|`prod`), `VITE_SERVER_URL` (`self` → `location.origin`; a URL; unset in dev → `http(s)://<hostname>:8787`).
+- Two environments (spec §5.4): **staging** = Worker `splash-sumo-staging` serving the staging client build (static assets) + game server, same origin, **TEST** badge; **prod** = Worker `splash-sumo` + GitHub Pages client. Build env vars: `VITE_APP_ENV` (`dev`|`staging`|`prod`), `VITE_SERVER_URL` (`self` → `location.origin`; a URL; unset in dev → `http(s)://<hostname>:8787`).
 - Staging deploys (`pnpm deploy:staging`) are allowed without asking once the PO has logged in to Cloudflare; **prod** deploys, push, and merge need the PO's explicit OK.
 - No push, merge, or prod `wrangler deploy` without the PO's explicit OK. The PO creates the Cloudflare account.
 - Commits end with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
@@ -66,7 +66,7 @@
   - Snapshot round trip: run `createMatch(42, 4 setups)` + 300 `step`s with a scripted input pattern; at every 2nd tick `encodeSnap` (tiles delta vs previous encoded tiles) and `applySnap` onto the client copy; final client players match server players within 0.001 on every `SnapPlayer` field, and tiles match exactly.
   - First snap with `prevTiles === null` has 91 tiles; a snap with no tile changes has `tiles.length === 0`.
   - `JSON.stringify(encodeSnap(...))` for a 4-player mid-match state is < 2500 bytes.
-- [ ] **Step 2: Run** `pnpm --filter @lava-sumo/shared test` — expect the new tests to FAIL.
+- [ ] **Step 2: Run** `pnpm --filter @splash-sumo/shared test` — expect the new tests to FAIL.
 - [ ] **Step 3: Implement** the files above; move `sanitizeNickname`/`defaultRandomNick`-free part to shared (shared takes `randomNick` as a parameter, no `Math.random`).
 - [ ] **Step 4: Run** `pnpm test && pnpm typecheck` — all green (client profile tests still pass).
 - [ ] **Step 5: Commit** `feat(shared): net protocol, room codes, snapshot codec`.
@@ -76,7 +76,7 @@
 ### Task 2: Pure room logic (`packages/server/src/room.ts`)
 
 **Files:**
-- Create: `packages/server/package.json` (`@lava-sumo/server`, scripts `test`, `typecheck`, `dev`, `deploy`), `packages/server/tsconfig.json`, `packages/server/src/room.ts`
+- Create: `packages/server/package.json` (`@splash-sumo/server`, scripts `test`, `typecheck`, `dev`, `deploy`), `packages/server/tsconfig.json`, `packages/server/src/room.ts`
 - Test: `packages/server/test/room.test.ts`
 
 **Interfaces — Consumes:** Task 1 protocol, snapshot codec, config; shared `createMatch`, `step`, `BotController`, `pickBotSetup`, `sanitizeNickname`.
@@ -109,7 +109,7 @@ Player id = `p` + slot order of joining (`p1`…`p4`), bots `bot1`…; `token` �
   - rate limit: 30 `in` msgs in 1 s → only 15 applied; 5 s of over-limit traffic → `close KICKED`.
   - invalid message → ignored (no throw); `pick` only in LOBBY.
   - all humans gone → `isDead` false at +29 999 ms, true at +30 000 ms.
-- [ ] **Step 2: Run** `pnpm --filter @lava-sumo/server test` — FAIL.
+- [ ] **Step 2: Run** `pnpm --filter @splash-sumo/server test` — FAIL.
 - [ ] **Step 3: Implement `RoomLogic`.**
 - [ ] **Step 4: Run** `pnpm test && pnpm typecheck` — green.
 - [ ] **Step 5: Commit** `feat(server): pure room logic (lobby, match loop, reconnect)`.
@@ -119,7 +119,7 @@ Player id = `p` + slot order of joining (`p1`…`p4`), bots `bot1`…; `token` �
 ### Task 3: Worker + `MatchRoom` Durable Object
 
 **Files:**
-- Create: `packages/server/wrangler.toml` (top level = prod, name `lava-sumo`, no assets; `[env.staging]` name `lava-sumo-staging` with its own DO binding/migration and `assets = { directory = "../client/dist-staging" }` so the Worker serves the staging client and falls through to the API for `/rooms*` and `/health`;  `main = "src/worker.ts"`, DO binding `ROOMS` → class `MatchRoom`, `[[migrations]] new_sqlite_classes = ["MatchRoom"]`, `compatibility_date` = today), `packages/server/src/worker.ts`, `packages/server/src/matchRoom.ts`, `packages/server/vitest.config.ts` (workers pool)
+- Create: `packages/server/wrangler.toml` (top level = prod, name `splash-sumo`, no assets; `[env.staging]` name `splash-sumo-staging` with its own DO binding/migration and `assets = { directory = "../client/dist-staging" }` so the Worker serves the staging client and falls through to the API for `/rooms*` and `/health`;  `main = "src/worker.ts"`, DO binding `ROOMS` → class `MatchRoom`, `[[migrations]] new_sqlite_classes = ["MatchRoom"]`, `compatibility_date` = today), `packages/server/src/worker.ts`, `packages/server/src/matchRoom.ts`, `packages/server/vitest.config.ts` (workers pool)
 - Modify: root `package.json` (`dev` runs client + `wrangler dev` together via a tiny dependency-free runner or `pnpm -r --parallel dev`; `build:staging` builds the client with `VITE_APP_ENV=staging VITE_SERVER_URL=self` into `packages/client/dist-staging`; `deploy:staging` = `build:staging` + `wrangler deploy --env staging`; `deploy:prod` = `wrangler deploy`)
 - Test: `packages/server/test/worker.test.ts`
 
@@ -132,7 +132,7 @@ Player id = `p` + slot order of joining (`p1`…`p4`), bots `bot1`…; `token` �
 - DO: Hibernation API (`ctx.acceptWebSocket`, `webSocketMessage`, `webSocketClose`); while `logic.needsTicking()` a `setInterval(TICK_MS)` calls `tick(Date.now())` and delivers `Outgoing` (JSON); interval cleared when not needed. Room existence flag kept in DO storage (SQLite KV) so `/claim` and `GET` survive hibernation; cleared when `isDead`. If the DO wakes from hibernation with sockets but no in-memory room, it closes them with `NOT_FOUND`.
 
 - [ ] **Step 1: Write failing tests** with `@cloudflare/vitest-pool-workers` (`SELF.fetch`): `POST /rooms` returns a valid code; `GET` that code → 200; `GET /rooms/ZZZZ` → 404; WebSocket to `/rooms/<code>/ws?v=1`, send `join` → receive `welcome` then `lobby`; `v=999` → `error UPDATE_REQUIRED`; host `start` → `start` then ≥ 1 `snap` within 4 s; `/health` → `{ok:true}`.
-- [ ] **Step 2: Run** `pnpm --filter @lava-sumo/server test` — FAIL.
+- [ ] **Step 2: Run** `pnpm --filter @splash-sumo/server test` — FAIL.
 - [ ] **Step 3: Implement** worker, DO, wrangler config, dev script.
 - [ ] **Step 4: Run** `pnpm test && pnpm typecheck`; then `pnpm dev` and `curl -X POST localhost:8787/rooms` → `{code}`.
 - [ ] **Step 5: Commit** `feat(server): Cloudflare worker + MatchRoom durable object`.
@@ -175,7 +175,7 @@ class InputSender { constructor(send, nowMs); update(input: InputState): void } 
   - `NetSource`: feed snaps at 50 ms spacing; `frame()` interpolates between the two snaps straddling render time (alpha correct to 0.05); out-of-order snap (older tick) ignored; a 500 ms gap holds `cur` at the last snap (alpha 1) with no throw, then resumes; events from a snap are returned exactly once, after render time passes it; tile deltas applied.
   - `InputSender`: identical inputs send nothing until 1000 ms keep-alive; 60 changing inputs in 1 s send ≤ 15; skill press then release both sent even inside the rate window (queued to the next slot); `seq` strictly increases.
   - Existing `setup`, `splash`, `profile`, `catalog` tests still pass.
-- [ ] **Step 2: Run** `pnpm --filter @lava-sumo/client test` — FAIL.
+- [ ] **Step 2: Run** `pnpm --filter @splash-sumo/client test` — FAIL.
 - [ ] **Step 3: Implement**: extract rendering/HUD/event code from `quickPlay.ts` into `runMatchView` unchanged; wrap the local loop in `LocalSource`; then `NetSource` and `InputSender`.
 - [ ] **Step 4: Run** `pnpm test && pnpm typecheck && pnpm build`; then `pnpm dev`, play one solo match in the browser — identical to before (countdown, eruption, results buttons Play again / Change fighter / Home).
 - [ ] **Step 5: Commit** `refactor(client): match view + sources; add NetSource and InputSender`.
@@ -221,5 +221,5 @@ class InputSender { constructor(send, nowMs); update(input: InputState): void } 
 - [ ] **Step 1:** Make the edits; `pnpm test && pnpm typecheck && pnpm build` green.
 - [ ] **Step 2: Commit** `chore: deploy wiring and docs for online play`.
 - [ ] **Step 3 (PO):** PO creates the free Cloudflare account and runs `! npx wrangler login`.
-- [ ] **Step 4 (staging):** `pnpm deploy:staging` → open `https://lava-sumo-staging.<account>.workers.dev` (TEST badge visible), `curl <url>/health` → `{"ok":true}`; PO + friends test on phones (one on cellular): create, join by link, finish a match, Play again, background a phone for 5 s.
-- [ ] **Step 5 (prod, after PO OK):** `pnpm deploy:prod` → `curl https://lava-sumo.<account>.workers.dev/health`; `gh variable set SERVER_URL --body "https://lava-sumo.<account>.workers.dev"`; push branch, open PR (CI green), merge → Pages redeploys; create + join a room on the live site from two phones.
+- [ ] **Step 4 (staging):** `pnpm deploy:staging` → open `https://splash-sumo-staging.<account>.workers.dev` (TEST badge visible), `curl <url>/health` → `{"ok":true}`; PO + friends test on phones (one on cellular): create, join by link, finish a match, Play again, background a phone for 5 s.
+- [ ] **Step 5 (prod, after PO OK):** `pnpm deploy:prod` → `curl https://splash-sumo.<account>.workers.dev/health`; `gh variable set SERVER_URL --body "https://splash-sumo.<account>.workers.dev"`; push branch, open PR (CI green), merge → Pages redeploys; create + join a room on the live site from two phones.

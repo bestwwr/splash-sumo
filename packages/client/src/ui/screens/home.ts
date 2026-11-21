@@ -23,7 +23,7 @@ export function createHomeScreen(root: HTMLElement, deps: HomeDeps): HomeScreen 
   const el = document.createElement("div");
   el.className = "home hidden";
   el.innerHTML = `
-    <h1 class="home-title">LAVA <span>SUMO</span></h1>
+    <h1 class="home-title">SPLASH <span>SUMO</span></h1>
     <div class="home-fighter">
       <button class="chip nick-chip" type="button"><span class="nick-text"></span></button>
       <input class="nick-input hidden" maxlength="12" autocomplete="off" autocapitalize="off" spellcheck="false" aria-label="Nickname" />

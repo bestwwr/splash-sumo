@@ -98,7 +98,7 @@ The platform should recognize every player across visits, and a player should be
 - A server profile load must never block Home: show the device profile first, then swap it in quietly when the server copy arrives.
 
 ### 5.6 Environments and operations
-- Two Supabase projects: **lava-sumo-staging** and **lava-sumo**. Schema lives in versioned SQL migrations in the repo (e.g. `supabase/migrations/`) and is applied to staging first, then to prod with PO OK.
+- Two Supabase projects: **splash-sumo-staging** and **splash-sumo**. Schema lives in versioned SQL migrations in the repo (e.g. `supabase/migrations/`) and is applied to staging first, then to prod with PO OK.
 - Client build env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` per environment, set the same way as `VITE_SERVER_URL` today (staging: `build:staging` script; prod: Pages workflow repo variables). `/account/merge` lives on the same Worker as the rooms (same `serverUrl()`), and its CORS uses the existing allow-list. Worker secrets: `SUPABASE_URL`, `SUPABASE_SERVICE_KEY` per Worker (`wrangler secret put`, run by the PO or approved per command).
 - Keep-alive: a Cloudflare Worker **cron trigger** (daily) does a trivial query on the prod project so it never pauses. Staging may pause; that's fine.
 - Unset Supabase env (local dev without keys) means accounts are off and the game behaves like today.

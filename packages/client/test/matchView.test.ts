@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { CONFIG, Phase, createMatch, type MatchResult, type MatchState, type PlayerSetup } from "@lava-sumo/shared";
+import { CONFIG, Phase, createMatch, type MatchResult, type MatchState, type PlayerSetup } from "@splash-sumo/shared";
 import type { MatchSource } from "../src/game/matchSource";
 
 vi.mock("../src/render/players", () => ({

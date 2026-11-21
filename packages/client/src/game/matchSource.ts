@@ -1,4 +1,4 @@
-import type { MatchState, SimEvent } from "@lava-sumo/shared";
+import type { MatchState, SimEvent } from "@splash-sumo/shared";
 import type { InputState } from "../input/input";
 
 /** Feeds runMatchView: a local sim or a network-interpolated one. Sources own all timing. */

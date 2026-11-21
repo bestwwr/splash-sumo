@@ -1,5 +1,5 @@
 /** Sends player input to the server: change-only, 2dp quantized, rate-limited, with keep-alive. */
-import { CONFIG, type ClientMsg } from "@lava-sumo/shared";
+import { CONFIG, type ClientMsg } from "@splash-sumo/shared";
 import type { InputState } from "../input/input";
 import type { SentInput } from "./prediction";
 

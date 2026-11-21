@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BotController, CONFIG, createMatch, pickBotSetup, step, type MatchState, type PlayerInput } from "@lava-sumo/shared";
+import { BotController, CONFIG, createMatch, pickBotSetup, step, type MatchState, type PlayerInput } from "@splash-sumo/shared";
 import { LocalSource } from "../src/game/localSource";
 import type { Profile } from "../src/meta/profile";
 

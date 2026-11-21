@@ -1,5 +1,5 @@
 import * as THREE from "three";
-import { CONFIG, HEX_SIZE, TileState, createRng, hexToWorld, type Tile } from "@lava-sumo/shared";
+import { CONFIG, HEX_SIZE, TileState, createRng, hexToWorld, type Tile } from "@splash-sumo/shared";
 
 const COLUMN_HEIGHT = 3.2;
 const BASALT = new THREE.Color("#3b3533");

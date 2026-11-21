@@ -1,4 +1,4 @@
-# Lava Sumo: product case study
+# Splash Sumo: product case study
 
 **A Product Owner shipping a real-time multiplayer browser game with AI coding agents.**
 
@@ -16,8 +16,8 @@
 |---|---|
 | **What** | A mobile-first party game: up to 4 players shove each other into lava on a floor that collapses tile by tile. No install, no sign-up. Open a link and play in 90 seconds. |
 | **My role** | Product Owner. I owned the vision, the spec, every product decision, the playtests and the release calls. AI coding agents (Claude Code) wrote the code under that direction. |
-| **Shipped** | Solo mode against bots at 3 difficulty levels: **live on the web**. Online multiplayer with private rooms: **built and in a separate test environment**, in phone playtesting before release. |
-| **Scale of work** | 45 commits · ~10k lines of TypeScript · **214 automated tests** · 600-match simulations to balance fighters · 2 environments (test and live) |
+| **Shipped** | Solo mode against bots at 3 difficulty levels: **live on the web**. Online multiplayer with private rooms: **live**, released after phone playtests in a separate test environment. |
+| **Scale of work** | 58 commits · ~10k lines of TypeScript · **229 automated tests** · 600-match simulations to balance fighters · 2 environments (test and live) |
 | **Constraints** | 1 person, part-time, **$0 hosting budget**, no engineer, no artist |
 | **How I worked** | Spec → recorded decisions → small reviewed tasks → playtest → measure → iterate. Every trade-off is written down with its reason, in [`DECISIONS.md`](../../DECISIONS.md). |
 
@@ -161,7 +161,7 @@ After the first test-environment playtest I got three reports. Each was diagnose
 |---|---|---|
 | "The stadium is too dark on my phone" | On a phone held upright, the camera pulls back to fit the arena (42 m vs 18 m), and the fixed fog covered the whole stage | Fog now scales with camera distance, and touch screens get slightly brighter rendering. **Fixed same day.** |
 | "Monkey's skill is too good" | Confirmed by simulation (above) | Cooldown 6 s → 10 s. **Fixed same day.** |
-| "It lags on my laptop" | **Measured** the live test server: updates arrive in bursts (gaps up to 136 ms vs 50 ms expected), and your own fighter waits ~¼ s for a server round trip | Split into a quick fix (smooth the updates) and a bigger one (instant local movement, the "prediction" deferred earlier). **Prioritizing now.** |
+| "It lags on my laptop" | **Measured** the live test server: updates arrive in bursts (gaps up to 136 ms vs 50 ms expected), and your own fighter waits ~¼ s for a server round trip | Split into a quick fix (smooth the updates) and a bigger one (instant local movement, the "prediction" deferred earlier). **Both shipped:** in a latency simulation, press → move dropped from ~320–430 ms to ~50–70 ms. |
 
 The lag report is the trigger I'd set in advance for building prediction: I deferred it as "only if testers report lag", and now they have.
 
@@ -169,7 +169,7 @@ The lag report is the trigger I'd set in advance for building prediction: I defe
 
 ## 7. Quality and engineering health
 
-- **214 automated tests** cover the game rules, bots, room logic, the online sync format and the screens. Every change runs them.
+- **229 automated tests** cover the game rules, bots, room logic, the online sync format and the screens. Every change runs them.
 - **One rulebook for phone and server:** the game logic is a single shared package with no randomness or clocks hidden inside, so the server and every phone compute the same match from the same inputs.
 - **Every tuning number lives in one file** (`config.ts`), so balance changes are one-line, reviewable edits.
 - **Independent review:** each task was checked by a separate reviewer against the spec. Issues found in review (examples: a reconnecting player got a stale screen, a silent background tab kept steering its fighter) were fixed before merge.
@@ -181,7 +181,7 @@ The lag report is the trigger I'd set in advance for building prediction: I defe
 
 | Now | Next | Later |
 |---|---|---|
-| Fix online lag (smooth updates, then instant local movement) | Phone playtest with 3–4 friends on cellular → release multiplayer to the live site | Analytics (rematch rate, matches per session) to measure against the traction gate |
+| Playtest online with bigger friend groups, on cellular | Optional accounts so stats follow you across devices (designed) | Analytics (rematch rate, matches per session) to measure against the traction gate |
 | Re-check Ember Dash balance with real players | 3D fighter models that match the new portraits | More arenas (the map picker already has slots), skins |
 
 ---

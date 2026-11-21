@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   CONFIG, Phase, createMatch, encodeSnap,
   type ClientMsg, type MatchState, type PlayerSetup, type SimEvent, type Snap, type StartMsg,
-} from "@lava-sumo/shared";
+} from "@splash-sumo/shared";
 import { JitterClock, NetSource } from "../src/net/netSource";
 
 const setups: PlayerSetup[] = [

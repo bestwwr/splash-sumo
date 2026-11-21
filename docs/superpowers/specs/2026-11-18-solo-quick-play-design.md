@@ -4,7 +4,7 @@
 
 ## 1. Intent
 
-Make Lava Sumo a **complete solo game that strangers can enjoy at a public link before online play exists**. A new player opens the link, sees their fighter on a volcano arena, taps Quick Play, and fights three bots at a difficulty they chose. The three fighters feel different because each has its own skill. Getting knocked out early doesn't mean dead time, because you come back as an ember spirit and keep influencing the fight.
+Make Splash Sumo a **complete solo game that strangers can enjoy at a public link before online play exists**. A new player opens the link, sees their fighter on a volcano arena, taps Quick Play, and fights three bots at a difficulty they chose. The three fighters feel different because each has its own skill. Getting knocked out early doesn't mean dead time, because you come back as an ember spirit and keep influencing the fight.
 
 This pulls most of the spec's Milestone 3 (characters, skills, bots, ember spirits, eruption) ahead of Milestone 2 (online), and adds a home page, an inventory and a public deploy.
 

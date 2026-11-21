@@ -184,7 +184,7 @@ importers:
 
   packages/client:
     dependencies:
-      '@lava-sumo/shared':
+      '@splash-sumo/shared':
         specifier: workspace:*
         version: link:../shared
       three:
@@ -206,7 +206,7 @@ importers:
 
   packages/server:
     dependencies:
-      '@lava-sumo/shared':
+      '@splash-sumo/shared':
         specifier: workspace:*
         version: link:../shared
     devDependencies:

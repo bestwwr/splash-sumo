@@ -4,7 +4,7 @@ Status: draft for PO approval · 2026-11-19 · Builds on SPEC §2–3 (architect
 
 ## 1. Intent
 
-Let up to 4 friends play the same Lava Sumo match from their own phones over the internet: one creates a room, shares a code/link, friends join, empty slots are bots. This is the core of the portfolio story ("shipped a real-time multiplayer game to real users"). The PO is in Pittsburgh, USA, tests first with nearby friends, and has friends in Thailand. Hosting must be free.
+Let up to 4 friends play the same Splash Sumo match from their own phones over the internet: one creates a room, shares a code/link, friends join, empty slots are bots. This is the core of the portfolio story ("shipped a real-time multiplayer game to real users"). The PO is in Pittsburgh, USA, tests first with nearby friends, and has friends in Thailand. Hosting must be free.
 
 **Success:** 4 phones on different networks (Wi-Fi + cellular) finish a match together, the floor never desyncs, shoves feel fair, and "Play again" keeps the group together.
 
@@ -46,7 +46,7 @@ Let up to 4 friends play the same Lava Sumo match from their own phones over the
 ## 5. Design
 
 ### 5.1 Packages
-- New `packages/server` (`@lava-sumo/server`): a Cloudflare Worker with one Durable Object class `MatchRoom`; depends on `@lava-sumo/shared`. Config in `wrangler.toml` (SQLite-backed DO migration).
+- New `packages/server` (`@splash-sumo/server`): a Cloudflare Worker with one Durable Object class `MatchRoom`; depends on `@splash-sumo/shared`. Config in `wrangler.toml` (SQLite-backed DO migration).
 - Room logic is a plain TypeScript class (`room.ts`: lobby, phases, tick, input handling, snapshot building) with no Cloudflare APIs. `MatchRoom` is a thin adapter that wires WebSockets, timers and storage to it. This keeps the logic testable with ordinary Vitest.
 - Shared protocol types (message shapes, error codes, `PROTOCOL_VERSION`) in `packages/shared/src/protocol.ts`.
 
@@ -90,8 +90,8 @@ Two fully separate environments (PO request), each with its own game server, roo
 
 | | **Test (staging)** | **Prod** |
 |---|---|---|
-| Client | Served by the staging Worker itself (Workers static assets, free) at `https://lava-sumo-staging.<account>.workers.dev`, with a small **TEST** badge | GitHub Pages `https://bestwwr.github.io/splash-sumo/` |
-| Game server | Worker `lava-sumo-staging` (`wrangler deploy --env staging`), same origin as its client | Worker `lava-sumo` (`wrangler deploy`) |
+| Client | Served by the staging Worker itself (Workers static assets, free) at `https://splash-sumo-staging.<account>.workers.dev`, with a small **TEST** badge | GitHub Pages `https://bestwwr.github.io/splash-sumo/` |
+| Game server | Worker `splash-sumo-staging` (`wrangler deploy --env staging`), same origin as its client | Worker `splash-sumo` (`wrangler deploy`) |
 | Deployed from | Any branch, by `pnpm deploy:staging` — Claude may deploy here freely once the PO has logged in | `main` only, after PO OK (`pnpm deploy:prod` + Pages workflow) |
 | Who uses it | PO + friends trying new builds before release | Everyone (portfolio link) |
 
@@ -110,6 +110,6 @@ Two fully separate environments (PO request), each with its own game server, roo
 Exact versions of `wrangler` and `@cloudflare/vitest-pool-workers` (pin current stable), snapshot field encoding details, interpolation buffer internals, lobby styling (match existing screens and the `--u` scale), how `pnpm dev` runs both processes.
 
 ## 8. Open (not blocking)
-- Worker name (default `lava-sumo`).
+- Worker name (default `splash-sumo`).
 - Whether a lobby needs a "kick player" button (default: no).
 - DECISIONS.md gets a new entry superseding SPEC D5 once this doc is approved.

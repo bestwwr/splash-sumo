@@ -1,5 +1,5 @@
 /** Online room client: REST helpers + a WebSocket that auto-reconnects and re-sends `join`. */
-import { CONFIG, PROTOCOL_VERSION, type CharacterId, type ClientMsg, type ServerMsg } from "@lava-sumo/shared";
+import { CONFIG, PROTOCOL_VERSION, type CharacterId, type ClientMsg, type ServerMsg } from "@splash-sumo/shared";
 
 export function serverUrl(
   env: string | undefined = import.meta.env.VITE_SERVER_URL,
@@ -12,8 +12,8 @@ export function serverUrl(
   return { http, ws: http.replace(/^http/, "ws") };
 }
 
-const TOKEN_KEY = "lavasumo.playerToken";
-const ANON_KEY = "lavasumo.anonId";
+const TOKEN_KEY = "splashsumo.playerToken";
+const ANON_KEY = "splashsumo.anonId";
 
 /** Stable per-browser identity for rejoining; reuses the analytics anon id when present. */
 export function playerToken(): string {

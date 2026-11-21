@@ -1,4 +1,4 @@
-# Lava Sumo
+# Splash Sumo
 
 **Sumo in a volcano.** 90-second matches, one thumb, send a link and play.
 Up to 4 players stand on basalt tiles over a lava lake. The floor cracks and melts tile by tile, and you shove each other in. Last one standing wins.
@@ -6,18 +6,18 @@ Up to 4 players stand on basalt tiles over a lava lake. The floor cracks and mel
 > Portfolio project by **Weerawish (Ben)**: a Product Owner shipping a real-time multiplayer browser game with AI coding agents.
 > **📄 Read the [product case study](docs/portfolio/CASE-STUDY.md)**: the problem, key decisions, data and playtests. Full spec: [`SPEC.md`](SPEC.md) · build decisions: [`DECISIONS.md`](DECISIONS.md).
 
-![A Lava Sumo match](docs/portfolio/img/05-match.jpg)
+![A Splash Sumo match](docs/portfolio/img/05-match.jpg)
 
 ## Play it here
 
-[**Play Lava Sumo**](https://bestwwr.github.io/splash-sumo/): solo vs bots is live; online multiplayer is in testing.
+[**Play Splash Sumo**](https://bestwwr.github.io/splash-sumo/): solo vs bots and online play with friends are both live.
 
 ## Status
 
 | Milestone | Scope | Status |
 |---|---|---|
 | 1 · Core loop (local) | Shared deterministic sim, hex arena, collapse, shove, elimination, joystick + keyboard, 3 dummies | ✅ Live |
-| 2 · Online | Cloudflare Workers + Durable Objects, private rooms, server snapshots + interpolation, reconnection | 🧪 In the test environment, phone playtest underway |
+| 2 · Online | Cloudflare Workers + Durable Objects, private rooms, server snapshots + interpolation, local-player prediction, reconnection | ✅ Live |
 | 3 · Characters & bots | Magma Tank / Ember Dash / Iron Gramp (elephant, monkey, turtle) with portrait art and skills, ember spirits, eruption, bot difficulties, solo Quick Play screens | ✅ Live (solo Quick Play) |
 | 4 · Polish & launch | Art, audio, PWA, analytics, itch.io | ⏳ |
 
@@ -33,8 +33,8 @@ pnpm dev          # client on http://localhost:5173 (plus a Network URL for phon
 pnpm test         # shared simulation unit tests
 pnpm typecheck
 pnpm build
-pnpm deploy:staging   # staging Worker lava-sumo-staging (client + server, TEST badge); deploy freely
-pnpm deploy:prod      # prod Worker lava-sumo; only with maintainer approval
+pnpm deploy:staging   # staging Worker splash-sumo-staging (client + server, TEST badge); deploy freely
+pnpm deploy:prod      # prod Worker splash-sumo; only with maintainer approval
 ```
 
 To test online play locally, use two browser windows on different origins (e.g. `localhost:5173` and `127.0.0.1:5173`): tabs on one origin share a player token.
