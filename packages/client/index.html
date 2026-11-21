@@ -25,12 +25,11 @@
       #boot.hidden { display: none; }
       #boot.ready { cursor: pointer; }
       #boot > * { position: relative; z-index: 2; }
-      /* Key art: fades in once downloaded, then drifts very slowly. */
+      /* Key art: fades in once downloaded. Full resolution, no scaling animation (keeps it sharp). */
       #boot .boot-bg {
         position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%;
         object-fit: cover; object-position: 50% 40%;
         opacity: 0; transition: opacity 0.6s ease-out;
-        animation: boot-drift 24s ease-in-out infinite alternate;
       }
       #boot .boot-bg.in { opacity: 1; }
       #boot::before { /* darken the top-left corner for the logo and the bottom for the bar */
@@ -40,7 +39,7 @@
           linear-gradient(180deg, rgba(14, 6, 4, 0) 58%, rgba(14, 6, 4, 0.9) 100%);
       }
       /* ---- Logo ---- */
-      .boot-logo { align-self: flex-start; display: flex; flex-direction: column; align-items: flex-start; gap: clamp(4px, 1.4vh, 10px); }
+      .boot-logo { align-self: flex-start; margin: clamp(8px, 3vh, 24px) 0 0 clamp(12px, 3vw, 36px); display: flex; flex-direction: column; align-items: flex-start; gap: clamp(4px, 1.4vh, 10px); }
       #boot .splash-title {
         margin: 0; font-weight: 900; line-height: 0.84; letter-spacing: -0.01em; text-align: left;
         transform: rotate(-4deg); transform-origin: 0 100%;
@@ -93,10 +92,9 @@
       @keyframes boot-creep { from { width: 4%; } to { width: 40%; } }
       @keyframes boot-stripes { to { background-position: 22.6px 0, 0 0; } }
       @keyframes boot-pulse { from { transform: scale(0.96); } to { transform: scale(1.04); } }
-      @keyframes boot-drift { from { transform: scale(1); } to { transform: scale(1.06); } }
       @media (prefers-reduced-motion: reduce) {
         .boot-bar i { animation: none; width: 30%; }
-        #boot.js .boot-bar i, #boot .splash-tap, #boot .boot-bg { animation: none; }
+        #boot.js .boot-bar i, #boot .splash-tap { animation: none; }
       }
     </style>
   </head>
@@ -115,7 +113,7 @@
           <div class="boot-meta"><span class="boot-status">Loading…</span><span class="boot-pct"></span></div>
           <p class="splash-tap">Tap to play</p>
         </div>
-        <p class="splash-foot">A Best &amp; Ben game</p>
+        <p class="splash-foot">BestnBen Studio</p>
       </div>
     </div>
     <script type="module" src="/src/main.ts"></script>

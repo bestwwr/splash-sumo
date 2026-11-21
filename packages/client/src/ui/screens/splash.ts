@@ -34,7 +34,7 @@ const MARKUP = `
     <div class="boot-meta"><span class="boot-status">Loading…</span><span class="boot-pct"></span></div>
     <p class="splash-tap">Tap to play</p>
   </div>
-  <p class="splash-foot">A Best &amp; Ben game</p>`;
+  <p class="splash-foot">BestnBen Studio</p>`;
 
 /**
  * The loading screen that becomes "Tap to play". It is normally already painted by index.html before any JS runs;
