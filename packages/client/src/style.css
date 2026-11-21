@@ -55,30 +55,15 @@ html, body {
 }
 .btn.ghost { background: rgba(255, 255, 255, 0.08); border: 1px solid rgba(255, 255, 255, 0.18); }
 
-/* ---------- Splash ---------- */
-.splash {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  background: radial-gradient(ellipse at center, rgba(26, 13, 10, 0.2), rgba(26, 13, 10, 0.8));
-  cursor: pointer;
-}
-.splash-title, .home-title {
+/* ---------- Splash / loading screen: styled inline in index.html so it paints before JS ---------- */
+.home-title {
   margin: 0;
   font-weight: 900;
   line-height: 1;
   letter-spacing: -0.02em;
   text-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
 }
-.splash-title { font-size: clamp(44px, 12vw, 96px); }
-.splash-title span, .home-title span { color: var(--lava); text-shadow: 0 0 18px rgba(255, 106, 26, 0.6); }
-.splash-tap { margin: 0; font-size: 22px; font-weight: 800; animation: tap-pulse 1.2s ease-in-out infinite alternate; }
-.splash-foot { position: absolute; bottom: calc(14px + var(--safe-b)); margin: 0; font-size: 12px; color: var(--muted); letter-spacing: 0.06em; }
-@keyframes tap-pulse { from { opacity: 0.45; transform: scale(0.97); } to { opacity: 1; transform: scale(1.03); } }
+.home-title span { color: var(--lava); text-shadow: 0 0 18px rgba(255, 106, 26, 0.6); }
 
 /* ---------- Home (layout B: showcase) ---------- */
 .home {
@@ -154,7 +139,6 @@ html, body {
   .home-menu .btn.primary { min-height: 56px; font-size: 20px; }
   .home-menu .btn.soon { font-size: 12px; }
 }
-@media (prefers-reduced-motion: reduce) { .splash-tap { animation: none; } }
 
 /* ---------- Controls ---------- */
 .controls { position: absolute; inset: 0; pointer-events: none; }

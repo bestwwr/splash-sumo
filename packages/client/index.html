@@ -9,10 +9,95 @@
     <meta name="description" content="Sumo in a volcano — shove your friends into the lava. 90-second matches, one thumb." />
     <title>Splash Sumo</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌋</text></svg>" />
+    <!-- Loading screen styles live here (not style.css) so it paints before the game code arrives. -->
+    <style>
+      html, body { margin: 0; height: 100%; overflow: hidden; background: #1a0d0a; }
+      #boot {
+        position: fixed; inset: 0; z-index: 5; overflow: hidden;
+        display: flex; flex-direction: column; align-items: center; justify-content: center;
+        gap: clamp(6px, 2vh, 14px);
+        padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+        box-sizing: border-box;
+        font-family: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
+        color: #fff6ec; text-align: center;
+        -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
+        background:
+          radial-gradient(ellipse 90% 55% at 50% 118%, #ffb020 0%, #ff6a1a 28%, #b8280a 52%, rgba(90, 20, 8, 0) 78%),
+          radial-gradient(ellipse 60% 50% at 50% 38%, rgba(255, 106, 26, 0.16), rgba(26, 13, 10, 0) 70%),
+          #1a0d0a;
+      }
+      #boot.hidden { display: none; }
+      #boot.ready { cursor: pointer; }
+      #boot::after { /* heat shimmer over the lava */
+        content: ""; position: absolute; left: -10%; right: -10%; bottom: -8%; height: 38%; pointer-events: none;
+        background: radial-gradient(ellipse at 50% 100%, rgba(255, 176, 32, 0.35), rgba(255, 176, 32, 0) 70%);
+        animation: boot-glow 2.4s ease-in-out infinite alternate;
+      }
+      #boot .splash-title {
+        margin: 0; font-weight: 900; line-height: 1; letter-spacing: -0.02em;
+        font-size: clamp(40px, min(11vw, 13vh), 92px);
+        text-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+      }
+      #boot .splash-title span { color: #ff6a1a; text-shadow: 0 0 18px rgba(255, 106, 26, 0.6); }
+      .boot-art { display: flex; align-items: flex-end; justify-content: center; margin: 0; position: relative; z-index: 1; }
+      .boot-card { margin: 0 clamp(2px, 0.8vw, 8px); position: relative; }
+      .boot-card img {
+        display: block; width: clamp(78px, min(17vw, 27vh), 150px); aspect-ratio: 1; object-fit: cover;
+        border-radius: 18px; border: 3px solid rgba(255, 176, 32, 0.85);
+        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55), 0 0 22px rgba(255, 106, 26, 0.35);
+        background: #2a150f;
+      }
+      .boot-card:nth-child(1) { transform: rotate(-8deg) translateY(6px); }
+      .boot-card:nth-child(3) { transform: rotate(8deg) translateY(6px); }
+      .boot-card:nth-child(2) { z-index: 1; }
+      .boot-card:nth-child(2) img { width: clamp(92px, min(20vw, 32vh), 176px); }
+      .boot-card b {
+        position: absolute; left: 3px; right: 3px; bottom: 3px; padding: 14px 4px 5px; border-radius: 0 0 15px 15px;
+        font-size: clamp(10px, 1.5vw, 13px); font-weight: 800; white-space: nowrap;
+        background: linear-gradient(180deg, rgba(26, 13, 10, 0), rgba(26, 13, 10, 0.85) 55%);
+      }
+      .boot-pitch { margin: 0; font-size: clamp(14px, 2.2vw, 20px); font-weight: 800; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); position: relative; z-index: 1; padding: 0 16px; }
+      .boot-bottom { width: min(560px, calc(100% - 32px)); display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; z-index: 1; }
+      .boot-tip { margin: 0; min-height: 1.3em; font-size: clamp(12px, 1.8vw, 15px); font-weight: 700; color: #fff6ec; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8); }
+      .boot-tip::before { content: "💡 "; }
+      .boot-bar { width: 100%; height: 14px; border-radius: 999px; background: rgba(26, 13, 10, 0.75); border: 2px solid rgba(255, 176, 32, 0.6); overflow: hidden; box-sizing: border-box; }
+      .boot-bar i { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, #ff8a3d, #ffb020); animation: boot-creep 6s cubic-bezier(0.1, 0.6, 0.3, 1) forwards; }
+      #boot.js .boot-bar i { animation: none; transition: width 0.35s ease-out; }
+      .boot-status { margin: 0; font-size: 12px; font-weight: 700; color: #e8cdb8; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
+      #boot .splash-tap { display: none; margin: 2px 0 0; font-size: 24px; font-weight: 900; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7); animation: boot-pulse 1.2s ease-in-out infinite alternate; }
+      #boot.ready .boot-bar, #boot.ready .boot-status { display: none; }
+      #boot.ready .splash-tap { display: block; }
+      #boot .splash-foot { position: absolute; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); right: calc(14px + env(safe-area-inset-right, 0px)); margin: 0; font-size: 11px; color: rgba(255, 246, 236, 0.7); letter-spacing: 0.06em; z-index: 1; }
+      @media (max-height: 340px) { .boot-pitch { display: none; } }
+      @keyframes boot-creep { from { width: 4%; } to { width: 40%; } }
+      @keyframes boot-pulse { from { opacity: 0.55; transform: scale(0.97); } to { opacity: 1; transform: scale(1.04); } }
+      @keyframes boot-glow { from { opacity: 0.6; } to { opacity: 1; } }
+      @media (prefers-reduced-motion: reduce) {
+        .boot-bar i { animation: none; width: 30%; }
+        #boot .splash-tap, #boot::after { animation: none; }
+      }
+    </style>
   </head>
   <body>
     <canvas id="game"></canvas>
-    <div id="ui"></div>
+    <div id="ui">
+      <div id="boot" class="splash boot">
+        <h1 class="splash-title">SPLASH <span>SUMO</span></h1>
+        <div class="boot-art" aria-hidden="true">
+          <div class="boot-card"><img src="/src/assets/fighters/elephant.jpg" alt="" /><b>Magma Tank</b></div>
+          <div class="boot-card"><img src="/src/assets/fighters/monkey.jpg" alt="" /><b>Ember Dash</b></div>
+          <div class="boot-card"><img src="/src/assets/fighters/turtle.jpg" alt="" /><b>Iron Gramp</b></div>
+        </div>
+        <p class="boot-pitch">Shove your rivals into the lava. Last one standing wins!</p>
+        <div class="boot-bottom">
+          <p class="boot-tip"><span class="boot-tip-text">Last one standing on the arena wins.</span></p>
+          <div class="boot-bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
+          <p class="boot-status">Loading…</p>
+          <p class="splash-tap">Tap to play</p>
+        </div>
+        <p class="splash-foot">A Best &amp; Ben game</p>
+      </div>
+    </div>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
