@@ -24,12 +24,14 @@ const TIP_MS = 4000;
 
 /** Fallback markup, matching the static loading screen in index.html (used in tests or if that markup is missing). */
 const MARKUP = `
-  <h1 class="splash-title">SPLASH <span>SUMO</span></h1>
-  <p class="boot-pitch">Shove your rivals into the lava. Last one standing wins!</p>
+  <div class="boot-logo">
+    <h1 class="splash-title" aria-label="Splash Sumo"><span class="boot-l1">SPLASH</span><span class="boot-l2">SUMO</span></h1>
+    <p class="boot-tag">Shove your rivals into the lava!</p>
+  </div>
   <div class="boot-bottom">
     <p class="boot-tip"><span class="boot-tip-text"></span></p>
     <div class="boot-bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
-    <p class="boot-status">Loading…</p>
+    <div class="boot-meta"><span class="boot-status">Loading…</span><span class="boot-pct"></span></div>
     <p class="splash-tap">Tap to play</p>
   </div>
   <p class="splash-foot">A Best &amp; Ben game</p>`;
@@ -51,6 +53,7 @@ export function createSplashScreen(root: HTMLElement, deps: { onContinue(): void
   const bar = box.querySelector<HTMLElement>(".boot-bar");
   const fill = box.querySelector<HTMLElement>(".boot-bar i");
   const status = box.querySelector<HTMLElement>(".boot-status");
+  const pctText = box.querySelector<HTMLElement>(".boot-pct");
   const tipText = box.querySelector<HTMLElement>(".boot-tip-text");
 
   let pct = 0;
@@ -106,6 +109,7 @@ export function createSplashScreen(root: HTMLElement, deps: { onContinue(): void
     bar?.setAttribute("aria-valuenow", String(pct));
     if (fill) fill.style.width = `${pct}%`;
     if (status) status.textContent = label;
+    if (pctText) pctText.textContent = `${pct}%`;
   }
 
   return {

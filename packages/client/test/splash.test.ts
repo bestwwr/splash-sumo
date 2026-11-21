@@ -39,6 +39,7 @@ describe("splash / loading screen", () => {
     expect(bar.getAttribute("aria-valuenow")).toBe("80");
     expect(el.querySelector<HTMLElement>(".boot-bar i")!.style.width).toBe("80%");
     expect(el.querySelector(".boot-status")!.textContent).toBe("Heating the volcano…");
+    expect(el.querySelector(".boot-pct")!.textContent).toBe("80%");
     splash.setProgress(150, "x");
     expect(bar.getAttribute("aria-valuenow")).toBe("100");
   });

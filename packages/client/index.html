@@ -13,68 +13,90 @@
     <style>
       html, body { margin: 0; height: 100%; overflow: hidden; background: #1a0d0a; }
       #boot {
-        position: fixed; inset: 0; z-index: 5; overflow: hidden;
-        display: flex; flex-direction: column; align-items: center; justify-content: center;
-        gap: clamp(6px, 2vh, 14px);
-        padding: env(safe-area-inset-top, 0px) env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
-        box-sizing: border-box;
+        position: fixed; inset: 0; z-index: 5; overflow: hidden; box-sizing: border-box;
+        display: flex; flex-direction: column; justify-content: space-between; align-items: center;
+        padding: calc(12px + env(safe-area-inset-top, 0px)) calc(16px + env(safe-area-inset-right, 0px))
+          calc(22px + env(safe-area-inset-bottom, 0px)) calc(16px + env(safe-area-inset-left, 0px));
         font-family: ui-rounded, "SF Pro Rounded", "Nunito", system-ui, -apple-system, "Segoe UI", sans-serif;
         color: #fff6ec; text-align: center;
         -webkit-user-select: none; user-select: none; -webkit-tap-highlight-color: transparent;
-        background:
-          radial-gradient(ellipse 90% 55% at 50% 118%, #ffb020 0%, #ff6a1a 28%, #b8280a 52%, rgba(90, 20, 8, 0) 78%),
-          radial-gradient(ellipse 60% 50% at 50% 38%, rgba(255, 106, 26, 0.16), rgba(26, 13, 10, 0) 70%),
-          #1a0d0a;
+        background: radial-gradient(ellipse 90% 55% at 50% 118%, #b8280a 0%, rgba(90, 20, 8, 0) 70%), #1a0d0a;
       }
       #boot.hidden { display: none; }
       #boot.ready { cursor: pointer; }
-      #boot::after { /* heat shimmer over the lava */
-        content: ""; position: absolute; left: -10%; right: -10%; bottom: -8%; height: 38%; pointer-events: none;
-        background: radial-gradient(ellipse at 50% 100%, rgba(255, 176, 32, 0.35), rgba(255, 176, 32, 0) 70%);
-        animation: boot-glow 2.4s ease-in-out infinite alternate;
+      #boot > * { position: relative; z-index: 2; }
+      /* Key art: fades in once downloaded, then drifts very slowly. */
+      #boot .boot-bg {
+        position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%;
+        object-fit: cover; object-position: 50% 40%;
+        opacity: 0; transition: opacity 0.6s ease-out;
+        animation: boot-drift 24s ease-in-out infinite alternate;
       }
+      #boot .boot-bg.in { opacity: 1; }
+      #boot::before { /* darken the top-left corner for the logo and the bottom for the bar */
+        content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+        background:
+          radial-gradient(ellipse 55% 60% at 0% 0%, rgba(14, 6, 4, 0.82), rgba(14, 6, 4, 0) 70%),
+          linear-gradient(180deg, rgba(14, 6, 4, 0) 58%, rgba(14, 6, 4, 0.9) 100%);
+      }
+      /* ---- Logo ---- */
+      .boot-logo { align-self: flex-start; display: flex; flex-direction: column; align-items: flex-start; gap: clamp(4px, 1.4vh, 10px); }
       #boot .splash-title {
-        margin: 0; font-weight: 900; line-height: 1; letter-spacing: -0.02em;
-        font-size: clamp(40px, min(11vw, 13vh), 92px);
-        text-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+        margin: 0; font-weight: 900; line-height: 0.84; letter-spacing: -0.01em; text-align: left;
+        transform: rotate(-4deg); transform-origin: 0 100%;
       }
-      #boot .splash-title span { color: #ff6a1a; text-shadow: 0 0 18px rgba(255, 106, 26, 0.6); }
-      .boot-art { display: flex; align-items: flex-end; justify-content: center; margin: 0; position: relative; z-index: 1; }
-      .boot-card { margin: 0 clamp(2px, 0.8vw, 8px); position: relative; }
-      .boot-card img {
-        display: block; width: clamp(78px, min(17vw, 27vh), 150px); aspect-ratio: 1; object-fit: cover;
-        border-radius: 18px; border: 3px solid rgba(255, 176, 32, 0.85);
-        box-shadow: 0 10px 26px rgba(0, 0, 0, 0.55), 0 0 22px rgba(255, 106, 26, 0.35);
-        background: #2a150f;
+      .boot-l1, .boot-l2 {
+        display: block;
+        filter: drop-shadow(2px 0 0 #2a0e06) drop-shadow(-2px 0 0 #2a0e06) drop-shadow(0 2px 0 #2a0e06)
+          drop-shadow(0 -2px 0 #2a0e06) drop-shadow(0 5px 0 #2a0e06) drop-shadow(0 10px 14px rgba(0, 0, 0, 0.55));
       }
-      .boot-card:nth-child(1) { transform: rotate(-8deg) translateY(6px); }
-      .boot-card:nth-child(3) { transform: rotate(8deg) translateY(6px); }
-      .boot-card:nth-child(2) { z-index: 1; }
-      .boot-card:nth-child(2) img { width: clamp(92px, min(20vw, 32vh), 176px); }
-      .boot-card b {
-        position: absolute; left: 3px; right: 3px; bottom: 3px; padding: 14px 4px 5px; border-radius: 0 0 15px 15px;
-        font-size: clamp(10px, 1.5vw, 13px); font-weight: 800; white-space: nowrap;
-        background: linear-gradient(180deg, rgba(26, 13, 10, 0), rgba(26, 13, 10, 0.85) 55%);
+      .boot-l1 { font-size: clamp(30px, min(6.4vw, 11vh), 62px); color: #fff6ec; padding-left: 0.08em; }
+      .boot-l2 {
+        font-size: clamp(46px, min(10vw, 17vh), 96px); padding-right: 0.06em;
+        background: linear-gradient(180deg, #ffe680 0%, #ffb020 34%, #ff6a1a 64%, #d22f0a 100%);
+        -webkit-background-clip: text; background-clip: text; color: transparent;
       }
-      .boot-pitch { margin: 0; font-size: clamp(14px, 2.2vw, 20px); font-weight: 800; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.6); position: relative; z-index: 1; padding: 0 16px; }
-      .boot-bottom { width: min(560px, calc(100% - 32px)); display: flex; flex-direction: column; align-items: center; gap: 6px; position: relative; z-index: 1; }
-      .boot-tip { margin: 0; min-height: 1.3em; font-size: clamp(12px, 1.8vw, 15px); font-weight: 700; color: #fff6ec; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8); }
+      .boot-tag {
+        margin: 0; padding: 5px 12px; border-radius: 999px; font-size: clamp(11px, 1.6vw, 14px); font-weight: 800;
+        background: rgba(26, 13, 10, 0.72); border: 1px solid rgba(255, 176, 32, 0.45);
+      }
+      /* ---- Bottom: tip, bar, tap ---- */
+      .boot-bottom { width: min(560px, 100%); display: flex; flex-direction: column; align-items: center; gap: 7px; }
+      .boot-tip { margin: 0; min-height: 1.3em; font-size: clamp(12px, 1.8vw, 15px); font-weight: 700; text-shadow: 0 1px 4px rgba(0, 0, 0, 0.9); }
       .boot-tip::before { content: "💡 "; }
-      .boot-bar { width: 100%; height: 14px; border-radius: 999px; background: rgba(26, 13, 10, 0.75); border: 2px solid rgba(255, 176, 32, 0.6); overflow: hidden; box-sizing: border-box; }
-      .boot-bar i { display: block; height: 100%; width: 0; border-radius: 999px; background: linear-gradient(90deg, #ff8a3d, #ffb020); animation: boot-creep 6s cubic-bezier(0.1, 0.6, 0.3, 1) forwards; }
-      #boot.js .boot-bar i { animation: none; transition: width 0.35s ease-out; }
-      .boot-status { margin: 0; font-size: 12px; font-weight: 700; color: #e8cdb8; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8); }
-      #boot .splash-tap { display: none; margin: 2px 0 0; font-size: 24px; font-weight: 900; text-shadow: 0 2px 8px rgba(0, 0, 0, 0.7); animation: boot-pulse 1.2s ease-in-out infinite alternate; }
-      #boot.ready .boot-bar, #boot.ready .boot-status { display: none; }
+      .boot-bar {
+        width: 100%; height: 18px; box-sizing: border-box; padding: 3px; border-radius: 999px; overflow: hidden;
+        background: rgba(20, 8, 5, 0.85); border: 2px solid #ffcf7a;
+        box-shadow: 0 0 0 2px #2a0e06, 0 6px 16px rgba(0, 0, 0, 0.5);
+      }
+      .boot-bar i {
+        display: block; height: 100%; width: 0; border-radius: 999px;
+        background:
+          repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.22) 0 8px, rgba(255, 255, 255, 0) 8px 16px),
+          linear-gradient(180deg, #ffe680, #ffb020 45%, #ff6a1a);
+        background-size: 22.6px 100%, 100% 100%;
+        animation: boot-creep 6s cubic-bezier(0.1, 0.6, 0.3, 1) forwards, boot-stripes 0.8s linear infinite;
+      }
+      #boot.js .boot-bar i { animation: boot-stripes 0.8s linear infinite; transition: width 0.35s ease-out; }
+      .boot-meta { width: 100%; display: flex; justify-content: space-between; font-size: 12px; font-weight: 800; color: #ffe2c4; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.9); }
+      #boot .splash-tap {
+        display: none; margin: 2px 0 0; padding: 10px 34px; border-radius: 999px; font-size: 22px; font-weight: 900;
+        background: linear-gradient(180deg, #ff8a3d, #e5430f); box-shadow: 0 4px 0 #8f2606, 0 10px 24px rgba(255, 90, 20, 0.4);
+        animation: boot-pulse 1.1s ease-in-out infinite alternate;
+      }
+      #boot.ready .boot-bar, #boot.ready .boot-meta { display: none; }
       #boot.ready .splash-tap { display: block; }
-      #boot .splash-foot { position: absolute; bottom: calc(8px + env(safe-area-inset-bottom, 0px)); right: calc(14px + env(safe-area-inset-right, 0px)); margin: 0; font-size: 11px; color: rgba(255, 246, 236, 0.7); letter-spacing: 0.06em; z-index: 1; }
-      @media (max-height: 340px) { .boot-pitch { display: none; } }
+      #boot .splash-foot {
+        position: absolute; bottom: calc(6px + env(safe-area-inset-bottom, 0px)); right: calc(12px + env(safe-area-inset-right, 0px));
+        margin: 0; font-size: 10px; color: rgba(255, 246, 236, 0.65); letter-spacing: 0.06em;
+      }
       @keyframes boot-creep { from { width: 4%; } to { width: 40%; } }
-      @keyframes boot-pulse { from { opacity: 0.55; transform: scale(0.97); } to { opacity: 1; transform: scale(1.04); } }
-      @keyframes boot-glow { from { opacity: 0.6; } to { opacity: 1; } }
+      @keyframes boot-stripes { to { background-position: 22.6px 0, 0 0; } }
+      @keyframes boot-pulse { from { transform: scale(0.96); } to { transform: scale(1.04); } }
+      @keyframes boot-drift { from { transform: scale(1); } to { transform: scale(1.06); } }
       @media (prefers-reduced-motion: reduce) {
         .boot-bar i { animation: none; width: 30%; }
-        #boot .splash-tap, #boot::after { animation: none; }
+        #boot.js .boot-bar i, #boot .splash-tap, #boot .boot-bg { animation: none; }
       }
     </style>
   </head>
@@ -82,17 +104,15 @@
     <canvas id="game"></canvas>
     <div id="ui">
       <div id="boot" class="splash boot">
-        <h1 class="splash-title">SPLASH <span>SUMO</span></h1>
-        <div class="boot-art" aria-hidden="true">
-          <div class="boot-card"><img src="/src/assets/fighters/elephant.jpg" alt="" /><b>Magma Tank</b></div>
-          <div class="boot-card"><img src="/src/assets/fighters/monkey.jpg" alt="" /><b>Ember Dash</b></div>
-          <div class="boot-card"><img src="/src/assets/fighters/turtle.jpg" alt="" /><b>Iron Gramp</b></div>
+        <img class="boot-bg" src="/src/assets/boot/key-art.jpg" alt="" fetchpriority="high" onload="this.classList.add('in')" />
+        <div class="boot-logo">
+          <h1 class="splash-title" aria-label="Splash Sumo"><span class="boot-l1">SPLASH</span><span class="boot-l2">SUMO</span></h1>
+          <p class="boot-tag">Shove your rivals into the lava!</p>
         </div>
-        <p class="boot-pitch">Shove your rivals into the lava. Last one standing wins!</p>
         <div class="boot-bottom">
           <p class="boot-tip"><span class="boot-tip-text">Last one standing on the arena wins.</span></p>
           <div class="boot-bar" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0"><i></i></div>
-          <p class="boot-status">Loading…</p>
+          <div class="boot-meta"><span class="boot-status">Loading…</span><span class="boot-pct"></span></div>
           <p class="splash-tap">Tap to play</p>
         </div>
         <p class="splash-foot">A Best &amp; Ben game</p>
