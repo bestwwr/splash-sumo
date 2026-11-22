@@ -13,6 +13,7 @@ import { createOnlineFlow } from "./game/onlinePlay";
 import { mountEnvBadge } from "./ui/toast";
 import { normalizeRoomCode } from "@splash-sumo/shared";
 import { migrateStorageKeys } from "./meta/storageKeys";
+import { runBoot } from "./game/boot";
 
 // Must run before anything below reads storage (the game was renamed from Lava Sumo).
 try {
@@ -174,6 +175,7 @@ const splash = createSplashScreen(ui, {
 });
 mountEnvBadge(document.body);
 splash.show();
+void runBoot(gs, splash);
 
 // --- Portrait prompt (A.7) ---
 const rotate = document.createElement("div");
